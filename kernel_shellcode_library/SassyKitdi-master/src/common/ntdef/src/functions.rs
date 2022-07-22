@@ -1,3 +1,10 @@
+pub type KeRaiseIrqlToDpcLevel = extern "stdcall" fn() -> crate::types::KIRQL;
+
+pub type KeLowerIrql = extern "stdcall" fn(
+    NewIrql:    crate::types::KIRQL
+) -> ();
+
+
 pub type ExAllocatePool = extern "stdcall" fn(
     pool_type:  crate::enums::POOL_TYPE,
     size:       crate::types::SIZE_T,

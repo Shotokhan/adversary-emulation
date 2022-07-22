@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(asm)]
+use core::arch::asm;
 
 pub mod hash;
 
@@ -45,19 +46,20 @@ pub unsafe fn get_proc_address(
 pub fn find_nt_base_address() -> ntdef::types::PVOID {
     let mut idt_entry = unsafe { get_kpcr_idt_base_entry() } as usize;
 
-    idt_entry &= !(0xfff as usize) as usize;
+    //idt_entry &= !(0xfff as usize) as usize;
 
-    loop {
-        let check_mz: *const u16 = idt_entry as _;
-
-        if unsafe { *check_mz == 0x5a4d } {
-            break;
-        }
-
-        idt_entry -= 0x1000;
+	let mut check_mz: *const u16 = idt_entry as _;
+    while unsafe { *check_mz != 0x5a4d } {
+        
+        unsafe{
+			asm!(
+				"lea {0}, [{0}-0x1000]",
+				out(reg) check_mz
+			);
+	    }
     }
 
-    idt_entry as _
+    check_mz as _
 }
 
 #[inline]
@@ -81,6 +83,7 @@ unsafe fn get_kpcr_idt_base_entry() -> ntdef::types::PVOID {
     asm!(
         "mov {0}, qword ptr gs:0x38",       //  KPCR.IdtBase
         "mov {0}, qword ptr [{0} + 0x4]",   //  IdtBase->KIDTENTRY64
+        "and {0}, 0xfffffffffffff000",
         out(reg) result,
     );
 

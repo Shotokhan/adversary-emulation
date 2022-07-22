@@ -55,3 +55,6 @@ pub type ULONG_PTR = u64;
 
 #[cfg(target_arch = "x86")]
 pub type ULONG_PTR = u32;
+
+
+pub type KIRQL = crate::types::UINT8;

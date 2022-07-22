@@ -16,6 +16,8 @@ pub struct TdiFuncs {
     pub ke_wait_for_single_object: ntdef::functions::KeWaitForSingleObject,
     //pub mm_build_mdl_for_non_paged_pool: ntdef::functions::MmBuildMdlForNonPagedPool,
     pub mm_probe_and_lock_pages: ntdef::functions::MmProbeAndLockPages,
+    pub ke_raise_irql_to_dpc_level: ntdef::functions::KeRaiseIrqlToDpcLevel,
+    pub ke_lower_irql: ntdef::functions::KeLowerIrql,
 }
 
 type TdiRecvHandler = unsafe fn(
@@ -29,14 +31,19 @@ type TdiRecvHandler = unsafe fn(
     irp:                    *mut ntdef::structs::PIRP,
 ) -> ntdef::types::NTSTATUS;
 
-#[repr(C, packed)]
+// #[repr(C, packed)]
+#[repr(C, align(4))]
 pub struct TdiContext {
     pub funcs:                          TdiFuncs,
     pub transport_handle:               ntdef::types::HANDLE,
     pub transport_file_object:          ntdef::structs::PFILE_OBJECT,
     pub connection_handle:              ntdef::types::HANDLE,
     pub connection_file_object:         ntdef::structs::PFILE_OBJECT,  
-    pub recv_handler:                   TdiRecvHandler,  
+    pub recv_handler:                   TdiRecvHandler,
+    pub app_buffer:                     ntdef::types::PVOID,
+    pub sync:                           u32,
+    pub msg_available:                  u32,
+    pub buf_len:                        u32,
 }
 
 pub struct TdiSocket {
@@ -165,11 +172,13 @@ impl Socket for TdiSocket {
         );
 
         // technically this should be wrapped in a SEH __try block, however we know the MDL buffer is good (and Rust no SEH)
+
         ((*self.tdi_ctx).funcs.mm_probe_and_lock_pages)(
             mdl,
             ntdef::enums::KPROCESSOR_MODE::KernelMode,
             ntdef::enums::LOCK_OPERATION::IoModifyAccess,
         );
+
 
         let mut param: ntdef::structs::TDI_REQUEST_KERNEL_SEND = core::mem::MaybeUninit::uninit().assume_init();
 
@@ -455,14 +464,21 @@ impl TdiSocket {
     ) -> Result<(), ntdef::types::NTSTATUS> {
         
         let mut status = ((*self.tdi_ctx).funcs.iof_call_driver)(device_object, pirp);
-    
+        
+        let mut timeout_value: ntdef::structs::LARGE_INTEGER = core::mem::MaybeUninit::uninit().assume_init();
+        // timeout_value.QuadPart = -10000000 as _; // 1 second
+        timeout_value.QuadPart = -150000000 as _; // 15 seconds
+        // timeout_value.QuadPart = 0 as _;
+        let timeout: ntdef::structs::PLARGE_INTEGER = &mut timeout_value as _;
+
         if status == ntdef::enums::NTSTATUS::STATUS_PENDING as _ {
             ((*self.tdi_ctx).funcs.ke_wait_for_single_object)(
                 tdi_completion_event as _,
                 ntdef::enums::KWAIT_REASON::Executive,
                 ntdef::enums::KPROCESSOR_MODE::KernelMode,
                 ntdef::enums::FALSE as _,
-                ntdef::enums::NULL as _
+                timeout
+                // ntdef::enums::NULL as _
             );
         }    
     

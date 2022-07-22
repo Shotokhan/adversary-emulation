@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 #[inline]
 pub fn NT_SUCCESS(status: i32) -> bool {
     status >= 0
@@ -13,9 +15,29 @@ pub unsafe fn RtlZeroMemory(
 }
 
 pub unsafe fn RtlCopyMemory(dst: *mut u8, src: *const u8, len: isize) {
+	/*
     for i in 0isize..len {
         *dst.offset(i) = *src.offset(i);
     }
+    */
+    let mut i: isize;
+    let mut tmp: u8;
+    asm!(
+    	"xor {3}, {3}",
+    	"5:",
+    	"cmp {2}, {3}",
+    	"je 6f",
+    	"mov {4}, BYTE PTR[{1}+{3}]",
+    	"mov BYTE PTR[{0}+{3}], {4}",
+    	"inc {3}",
+    	"jmp 5b",
+    	"6:",
+    	in(reg) dst,
+    	in(reg) src,
+    	in(reg) len,
+        out(reg) i,
+        out(reg_byte) tmp
+    )
 }
 
 #[cfg(target_arch ="x86_64")]

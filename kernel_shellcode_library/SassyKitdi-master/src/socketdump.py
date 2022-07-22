@@ -16,7 +16,7 @@ def recvall(sock, size, read_size = 4096):
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-server_address = ('0.0.0.0', 64444)
+server_address = ('0.0.0.0', 5000)
 print('starting up on %s port %s' % server_address)
 sock.bind(server_address)
 
@@ -28,7 +28,7 @@ while True:
     print('waiting for a connection')
     connection, client_address = sock.accept()
 
-    connection.settimeout(10.0)
+    # connection.settimeout(10.0)
     print('connection from', client_address)
 
     data = "\x02\x00\x00\x00\xcc"#\xc3"
