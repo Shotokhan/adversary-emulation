@@ -131,6 +131,8 @@ pub const TDI_EVENT_RECEIVE_DATAGRAM: u16 = 4;
 pub const TDI_EVENT_RECEIVE_EXPEDITED: u16 = 5;
 pub const TDI_EVENT_SEND_POSSIBLE: u16 = 6;
 
+pub const TDI_DISCONNECT_ABORT: u16 = 0x2;
+
 #[allow(overflowing_literals)]
 #[repr(i32)]
 pub enum NTSTATUS {

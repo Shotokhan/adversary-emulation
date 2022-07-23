@@ -55,6 +55,7 @@ pub trait Socket {
     unsafe fn add_recv_handler(&mut self, recv_handler: TdiRecvHandler);
     unsafe fn connect(&mut self, remote: u32, port: u16) -> Result<(), ntdef::types::NTSTATUS>;
     unsafe fn send(&mut self, buffer: *const u8, size: u32) -> Result<(), ntdef::types::NTSTATUS>;
+    unsafe fn close(&mut self) -> Result<(), ntdef::types::NTSTATUS>;
 }
 
 impl Socket for TdiSocket {
@@ -197,6 +198,46 @@ impl Socket for TdiSocket {
         //((*self.tdi_ctx).funcs.io_free_mdl)(mdl);
 
         ((*self.tdi_ctx).funcs.ex_free_pool_with_tag)(out, 0);
+
+        Ok(())
+    }
+
+    unsafe fn close(&mut self) -> Result<(), ntdef::types::NTSTATUS> {
+        // de-register receive event handler
+        let mut event_params: ntdef::structs::TDI_REQUEST_KERNEL_SET_EVENT = core::mem::MaybeUninit::uninit().assume_init();
+
+        event_params.EventType = ntdef::enums::TDI_EVENT_RECEIVE as _;
+        event_params.EventHandler = ntdef::enums::NULL as _;
+        event_params.EventContext = ntdef::enums::NULL as _;
+
+        self.tdi_ioctl(
+            (*self.tdi_ctx).transport_file_object,
+            ntdef::enums::TDI_SET_EVENT_HANDLER,
+            &mut event_params as *mut _ as _,
+            core::mem::size_of_val(&event_params),
+            ntdef::enums::NULL as _
+        )?;
+
+        // close connection with RST
+        let mut param: ntdef::structs::TDI_REQUEST_KERNEL = core::mem::MaybeUninit::uninit().assume_init();
+
+        let mut request_flags: ntdef::types::ULONG = ntdef::enums::TDI_DISCONNECT_ABORT as _;
+
+        let ptr_request_flags: *const ntdef::types::ULONG = &request_flags as _;
+        
+        // param.RequestFlags = ntdef::enums::NULL as _;
+        param.RequestFlags = ptr_request_flags as _;
+        param.RequestConnectionInformation = ntdef::enums::NULL as _;
+        param.ReturnConnectionInformation = ntdef::enums::NULL as _;
+        param.RequestSpecific = ntdef::enums::NULL as _;
+
+        self.tdi_ioctl(
+            (*self.tdi_ctx).connection_file_object,
+            ntdef::enums::TDI_DISCONNECT,
+            &mut param as *mut _ as _,
+            core::mem::size_of_val(&param),
+            ntdef::enums::NULL as _
+        )?;
 
         Ok(())
     }
