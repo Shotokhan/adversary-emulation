@@ -40,6 +40,34 @@ pub unsafe fn RtlCopyMemory(dst: *mut u8, src: *const u8, len: isize) {
     )
 }
 
+pub unsafe fn RtlEqualMemory(dst: *mut u8, src: *const u8, len: isize) -> u32 {
+    let mut i: isize = 0;
+    let mut tmp: u8 = 0;
+    let mut result: u32 = 1 as _;
+    asm!(
+        "xor {3}, {3}",
+        "7:",
+        "cmp {2}, {3}",
+        "je 9f",
+        "mov {4}, BYTE PTR[{0}+{3}]",
+        "cmp {4}, BYTE PTR[{1}+{3}]",
+        "je 8f",
+        "xor {5:e}, {5:e}",
+        "jmp 9f",
+        "8:",
+        "inc {3}",
+        "jmp 7b",
+        "9:",
+        in(reg) dst,
+        in(reg) src,
+        in(reg) len,
+        out(reg) i,
+        out(reg_byte) tmp,
+        inout(reg) result
+    );
+    result
+}
+
 #[cfg(target_arch ="x86_64")]
 pub unsafe fn IoGetNextIrpStackLocation(
     irp:       crate::structs::PIRP

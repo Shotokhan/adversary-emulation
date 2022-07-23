@@ -221,7 +221,7 @@ impl Socket for TdiSocket {
         // close connection with RST
         let mut param: ntdef::structs::TDI_REQUEST_KERNEL = core::mem::MaybeUninit::uninit().assume_init();
 
-        let mut request_flags: ntdef::types::ULONG = ntdef::enums::TDI_DISCONNECT_ABORT as _;
+        let request_flags: ntdef::types::ULONG = ntdef::enums::TDI_DISCONNECT_ABORT as _;
 
         let ptr_request_flags: *const ntdef::types::ULONG = &request_flags as _;
         
