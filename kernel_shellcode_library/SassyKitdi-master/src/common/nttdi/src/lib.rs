@@ -17,7 +17,7 @@ pub struct TdiFuncs {
     //pub mm_build_mdl_for_non_paged_pool: ntdef::functions::MmBuildMdlForNonPagedPool,
     pub mm_probe_and_lock_pages: ntdef::functions::MmProbeAndLockPages,
     pub ke_raise_irql_to_dpc_level: ntdef::functions::KeRaiseIrqlToDpcLevel,
-    pub ke_lower_irql: ntdef::functions::KeLowerIrql,
+    //pub ke_lower_irql: ntdef::functions::KeLowerIrql,
 }
 
 type TdiRecvHandler = unsafe fn(
@@ -41,7 +41,7 @@ pub struct TdiContext {
     pub connection_file_object:         ntdef::structs::PFILE_OBJECT,  
     pub recv_handler:                   TdiRecvHandler,
     pub app_buffer:                     ntdef::types::PVOID,
-    pub sync:                           u32,
+    // pub sync:                           u32,
     pub msg_available:                  u32,
     pub buf_len:                        u32,
 }
@@ -204,6 +204,7 @@ impl Socket for TdiSocket {
 
     unsafe fn close(&mut self) -> Result<(), ntdef::types::NTSTATUS> {
         // de-register receive event handler
+        /*
         let mut event_params: ntdef::structs::TDI_REQUEST_KERNEL_SET_EVENT = core::mem::MaybeUninit::uninit().assume_init();
 
         event_params.EventType = ntdef::enums::TDI_EVENT_RECEIVE as _;
@@ -217,6 +218,7 @@ impl Socket for TdiSocket {
             core::mem::size_of_val(&event_params),
             ntdef::enums::NULL as _
         )?;
+        */
 
         // close connection with RST
         let mut param: ntdef::structs::TDI_REQUEST_KERNEL = core::mem::MaybeUninit::uninit().assume_init();
