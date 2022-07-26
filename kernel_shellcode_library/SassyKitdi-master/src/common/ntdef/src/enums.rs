@@ -3,6 +3,11 @@ pub const FALSE: u32 = 0;
 
 pub const NULL: crate::types::PVOID = core::ptr::null_mut();
 
+pub const FILE_NAMES_INFORMATION: u32 = 0xc;
+
+pub const FILE_LIST_DIRECTORY: u32 = 0x1;
+pub const FILE_OPEN: u32 = 0x1;
+
 pub const FILE_READ_EA: u32 = 0x8;
 pub const FILE_WRITE_EA: u32 = 0x10;
 

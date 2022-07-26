@@ -1,3 +1,13 @@
+#[repr(C, align(4))]
+pub struct _FILE_NAMES_INFORMATION {
+    pub NextEntryOffset: crate::types::ULONG,
+    pub FileIndex: crate::types::ULONG,
+    pub FileNameLength: crate::types::ULONG,
+    pub FileName: u16,   // this is the string itself
+}
+
+pub type PFILE_NAMES_INFORMATION = *mut _FILE_NAMES_INFORMATION;
+
 // todo: make these structs?
 pub type PFILE_OBJECT = crate::types::PVOID;
 pub type PDEVICE_OBJECT = crate::types::PVOID;

@@ -68,6 +68,22 @@ pub unsafe fn RtlEqualMemory(dst: *mut u8, src: *const u8, len: isize) -> u32 {
     result
 }
 
+pub unsafe fn Strlen(src: *const u8) -> isize {
+    let mut i: isize;
+    asm!(
+        "xor {1}, {1}",
+        "3:",
+        "cmp BYTE PTR[{0}+{1}], 0",
+        "je 4f",
+        "inc {1}",
+        "jmp 3b",
+        "4:",
+        in(reg) src,
+        out(reg) i
+    );
+    return i;
+}
+
 #[cfg(target_arch ="x86_64")]
 pub unsafe fn IoGetNextIrpStackLocation(
     irp:       crate::structs::PIRP

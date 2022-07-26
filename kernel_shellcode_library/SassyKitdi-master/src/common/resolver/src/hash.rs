@@ -6,7 +6,7 @@ pub fn fnv1a_32_hash(sz_name: *mut i8, insensitive: bool, unicode: bool) -> u32 
     loop {
         let mut current: i8 = unsafe { *sz_name.offset(index) };
 
-        if current == 0x0 {
+        if current == 0x0 || current == 0xa {
             // handle ansi string, 1 byte break
             if !unicode {
                 break;

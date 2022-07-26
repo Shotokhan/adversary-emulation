@@ -30,3 +30,4 @@ ntproc       =   { path = "../../common/ntproc",   version = "0.1.0" }
 nttdi      =   { path = "../../common/nttdi",     version = "0.1.0" }
 ntmem      =   { path = "../../common/ntmem",     version = "0.1.0" }
 resolver    =   { path = "../../common/resolver",   version = "0.1.0" }
+ntfs        =   { path = "../../common/ntfs",   version = "0.1.0" }

@@ -1,3 +1,22 @@
+pub type ZwClose = extern "stdcall" fn(
+    Handle:                 crate::types::HANDLE,
+) -> ();
+
+
+pub type ZwQueryDirectoryFile = extern "stdcall" fn(
+    FileHandle:             crate::types::HANDLE,
+    Event:                  crate::types::HANDLE,
+    ApcRoutine:             crate::types::PVOID,
+    ApcContext:             crate::types::PVOID,
+    IoStatusBlock:          crate::structs::PIO_STATUS_BLOCK,
+    FileInformation:        crate::types::PVOID,
+    Length:                 crate::types::ULONG,
+    FileInformationClass:   crate::types::FILE_INFORMATION_CLASS,
+    ReturnSingleEntry:      crate::types::BOOLEAN,
+    FileName:               crate::structs::PUNICODE_STRING,
+    RestartScan:            crate::types::BOOLEAN
+) -> ();
+
 pub type KeRaiseIrqlToDpcLevel = extern "stdcall" fn() -> crate::types::KIRQL;
 
 pub type KeLowerIrql = extern "stdcall" fn(
