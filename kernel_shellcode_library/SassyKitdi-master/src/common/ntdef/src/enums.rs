@@ -3,6 +3,9 @@ pub const FALSE: u32 = 0;
 
 pub const NULL: crate::types::PVOID = core::ptr::null_mut();
 
+pub const MmNonCached: u32 = crate::enums::FALSE;
+pub const MmCached: u32 = crate::enums::TRUE;
+
 pub const FILE_NAMES_INFORMATION: u32 = 0xc;
 
 pub const FILE_LIST_DIRECTORY: u32 = 0x1;

@@ -60,3 +60,5 @@ pub type ULONG_PTR = u32;
 pub type KIRQL = crate::types::UINT8;
 
 pub type FILE_INFORMATION_CLASS = crate::types::ULONG;
+
+pub type LARGE_INTEGER = crate::types::INT64;

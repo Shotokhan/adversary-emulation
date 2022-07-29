@@ -1,3 +1,46 @@
+pub type MmMapIoSpace = extern "stdcall" fn(
+    PhysicalAddress:        crate::types::UINT64,
+    NumberOfBytes:          crate::types::SIZE_T,
+    CacheType:              crate::types::UINT32,
+) -> crate::types::PVOID;
+
+
+pub type MmAllocateContiguousMemory = extern "stdcall" fn(
+    NumberOfBytes:              crate::types::SIZE_T,
+    HighestAcceptableAddress:   crate::types::UINT64,
+) -> crate::types::PVOID;
+
+
+pub type ExTryToAcquireFastMutex = extern "stdcall" fn(
+    FastMutex:              crate::types::PVOID,
+) -> crate::types::BOOLEAN;
+
+
+pub type ExInitializeFastMutex = extern "stdcall" fn(
+    FastMutex:              crate::types::PVOID,
+) -> ();
+
+
+pub type KeSetTimerEx = extern "stdcall" fn(
+    Timer:                  crate::types::PVOID,
+    DueTime:                crate::types::LARGE_INTEGER,
+    Period:                 crate::types::LONG,
+    Dpc:                    crate::types::PVOID,
+) -> crate::types::BOOLEAN;
+
+
+pub type KeInitializeDpc = extern "stdcall" fn(
+    Dpc:                    crate::types::PVOID,
+    DeferredRoutine:        crate::types::PVOID,
+    DeferredContext:        crate::types::PVOID,
+) -> ();
+
+
+pub type KeInitializeTimer = extern "stdcall" fn(
+    Timer:                  crate::types::PVOID,
+) -> ();
+
+
 pub type ZwClose = extern "stdcall" fn(
     Handle:                 crate::types::HANDLE,
 ) -> ();
