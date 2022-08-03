@@ -3,6 +3,8 @@ pub const FALSE: u32 = 0;
 
 pub const NULL: crate::types::PVOID = core::ptr::null_mut();
 
+pub const THREAD_ALL_ACCESS: u32 = 0x001FFFFF;
+
 pub const MmNonCached: u32 = crate::enums::FALSE;
 pub const MmCached: u32 = crate::enums::TRUE;
 

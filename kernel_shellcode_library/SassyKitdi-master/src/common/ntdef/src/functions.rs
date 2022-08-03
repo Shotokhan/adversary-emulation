@@ -1,3 +1,26 @@
+pub type PsTerminateSystemThread = extern "stdcall" fn(
+    ExitStatus:             crate::types::NTSTATUS,
+) -> ();
+
+
+pub type PsCreateSystemThread = extern "stdcall" fn(
+    ThreadHandle:           crate::types::PHANDLE,
+    DesiredAccess:          crate::types::ULONG,
+    ObjectAttributes:       crate::types::PVOID,
+    ProcessHandle:          crate::types::HANDLE,
+    ClientId:               crate::types::PVOID,
+    StartRoutine:           crate::types::PVOID,
+    StartContext:           crate::types::PVOID,
+) -> ();
+
+
+pub type KeInitializeThreadedDpc = extern "stdcall" fn(
+    Dpc:                    crate::types::PVOID,
+    DeferredRoutine:        crate::types::PVOID,
+    DeferredContext:        crate::types::PVOID,
+) -> ();
+
+
 pub type MmMapIoSpace = extern "stdcall" fn(
     PhysicalAddress:        crate::types::UINT64,
     NumberOfBytes:          crate::types::SIZE_T,

