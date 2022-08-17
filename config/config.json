@@ -1,0 +1,9 @@
+{
+  "win_major_version": 19041,
+  "c2_ip": "192.168.122.1",
+  "c2_port": 5000,
+  "first_stage_profile": "first_stage_default",
+  "first_stage_egg": "30f79746705547e3a625b82dccab2f3e560a710098e44da7981d45f0af83506d",
+  "second_stage_profile": "second_stage_default",
+  "ram_filename": "pc.ram"
+}

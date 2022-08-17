@@ -19,4 +19,12 @@ WORKDIR /usr/src/app/devmem2
 RUN make shared
 WORKDIR /usr/src/app
 
+COPY c2 c2
+
+COPY injector.py .
+COPY vm_drivers.py .
+COPY requirements.txt .
+
+CMD pip install -r requirements.txt
+
 CMD ["sleep", "3600"]

@@ -11,3 +11,4 @@ services:
       - 5000:5000
     volumes:
       - /dev/shm:/dev/shm
+      - ./config:/usr/src/app/config

