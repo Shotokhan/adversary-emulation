@@ -19,12 +19,11 @@ WORKDIR /usr/src/app/devmem2
 RUN make shared
 WORKDIR /usr/src/app
 
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY c2 c2
 
-COPY injector.py .
-COPY vm_drivers.py .
-COPY requirements.txt .
+COPY *.py ./
 
-CMD pip install -r requirements.txt
-
-CMD ["sleep", "3600"]
+CMD ["python", "app.py"]

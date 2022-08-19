@@ -7,5 +7,7 @@
   "first_stage_profile": "first_stage_default",
   "first_stage_egg": "30f79746705547e3a625b82dccab2f3e560a710098e44da7981d45f0af83506d",
   "second_stage_profile": "second_stage_default",
-  "ram_filename": "pc.ram"
+  "ram_filename": "pc.ram",
+  "flask_port": 8000,
+  "text_ui_port": 7331
 }

