@@ -12,7 +12,7 @@ class CmdLineTCPHandler(socketserver.BaseRequestHandler):
         command_line_interface(self.server.kcaldera_config, self.server.kcaldera_offsets)
 
 
-def start_multithreaded_cmd_line_interface(config, offsets):
+def start_multiprocess_cmd_line_interface(config, offsets):
     host, port = '0.0.0.0', config['text_ui_port']
     server = socketserver.ForkingTCPServer((host, port), CmdLineTCPHandler)
     server.timeout = 2
