@@ -43,6 +43,7 @@ def search_physical(virtual_address, page_offset, expected_bytes, shmem, dev_shm
     found = False
     page_offset = page_offset % 0x1000
     # page_offset = virtual_address & (0x1000 - 1)
+    addr = 0
     for addr in range(0, ram_size, 0x1000):
         read_data = read_shmem(shmem, dev_shm_filename, addr+page_offset, len(expected_bytes))
         if debug:
@@ -65,7 +66,7 @@ def search_physical(virtual_address, page_offset, expected_bytes, shmem, dev_shm
             print(f"Egg is located at {hex(addr)}")
         return addr
     else:
-        print("Address not found, maybe bad page_offset or bad expected_bytes")
+        print("Address not found, maybe bad page_offset or bad expected_bytes for specified Windows version")
         return None
 
 

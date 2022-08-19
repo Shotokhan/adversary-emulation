@@ -14,12 +14,21 @@ class InvalidDomain(Exception):
     pass
 
 
-injection_majors = {
-    19041: {
-        "syscall_name": "NtQueryVirtualMemory",
-        "expected_bytes": b"\x48\x83\xec\x48\x48\x8b\x44\x24\x78\xc7\x44\x24\x30\x02\x00\x00\x00\x48\x89\x44\x24\x28\x48\x8b\x44\x24\x70\x48\x89\x44\x24\x20\xe8\x1b\x00\x00\x00\x48\x83\xc4\x48\xc3\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\x4c\x8b\xdc\x53\x56\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x81\xec\x70\x01\x00\x00\x48\x8b\x05\xa4\x49\x5b\x00\x48\x33\xc4\x48\x89\x84\x24\x60\x01\x00\x00\x4d\x8b\xe1\x4c\x89\x8c\x24\xf8\x00\x00\x00\x45\x8b\xf0\x44\x89\x84\x24\xc8\x00\x00\x00\x48\x89\x54\x24\x58\x48\x8b\xf9\x48\x8b\x84\x24\xd8\x01\x00\x00\x48\x89\x44\x24\x50\x33\xc9\x89\x4c\x24\x48\x48\x89\x4c\x24\x70\x49\x89\x8b\x38\xff\xff\xff\x0f\x57\xc0\x0f\x11\x84\x24\x80\x00\x00\x00\x0f\x11\x84\x24\x90\x00\x00\x00\x0f\x11\x84\x24\xa0\x00\x00\x00\x33\xc0\x0f\x11\x84\x24\xb0\x00\x00\x00\x49\x89\x83\x18\xff\xff\xff\x0f\x57\xc9\x41\x0f\x11\x4b\x88\x41\x0f\x11\x4b\x98\x41\x0f\x11\x4b\xa8\x89\x4c\x24\x40\x48\x89\x8c\x24\xd8\x00\x00\x00\x48\x89",
-        "injection_offset": 64
-    }
+injection_points_by_ver = {
+    "19044.1706": [
+        {
+            "syscall_name": "NtQueryVirtualMemory",
+            "expected_bytes": [b"\x48\x83\xec\x48\x48\x8b\x44\x24\x78\xc7\x44\x24\x30\x02\x00\x00\x00\x48\x89\x44\x24\x28\x48\x8b\x44\x24\x70\x48\x89\x44\x24\x20\xe8\x1b\x00\x00\x00\x48\x83\xc4\x48\xc3\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\x4c\x8b\xdc\x53\x56\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x81\xec\x70\x01\x00\x00\x48\x8b\x05\xa4\x49\x5b\x00\x48\x33\xc4\x48\x89\x84\x24\x60\x01\x00\x00\x4d\x8b\xe1\x4c\x89\x8c\x24\xf8\x00\x00\x00\x45\x8b\xf0\x44\x89\x84\x24\xc8\x00\x00\x00\x48\x89\x54\x24\x58\x48\x8b\xf9\x48\x8b\x84\x24\xd8\x01\x00\x00\x48\x89\x44\x24\x50\x33\xc9\x89\x4c\x24\x48\x48\x89\x4c\x24\x70\x49\x89\x8b\x38\xff\xff\xff\x0f\x57\xc0\x0f\x11\x84\x24\x80\x00\x00\x00\x0f\x11\x84\x24\x90\x00\x00\x00\x0f\x11\x84\x24\xa0\x00\x00\x00\x33\xc0\x0f\x11\x84\x24\xb0\x00\x00\x00\x49\x89\x83\x18\xff\xff\xff\x0f\x57\xc9\x41\x0f\x11\x4b\x88\x41\x0f\x11\x4b\x98\x41\x0f\x11\x4b\xa8\x89\x4c\x24\x40\x48\x89\x8c\x24\xd8\x00\x00\x00\x48\x89"],
+            "injection_offset": 64
+        }
+    ],
+    "19044.1889": [
+        {
+            "syscall_name": "NtQueryVirtualMemory",
+            "expected_bytes": [b"\x48\x83\xec\x48\x48\x8b\x44\x24\x78\xc7\x44\x24\x30\x02\x00\x00\x00\x48\x89\x44\x24\x28\x48\x8b\x44\x24\x70\x48\x89\x44\x24\x20\xe8\x1b\x00\x00\x00\x48\x83\xc4\x48\xc3\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\x4c\x8b\xdc\x53\x56\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x81\xec\x70\x01\x00\x00\x48\x8b\x05\x94\x91\x62\x00\x48\x33\xc4\x48\x89\x84\x24\x60\x01\x00\x00\x4d\x8b\xe1\x4c\x89\x8c\x24\xf8\x00\x00\x00\x45\x8b\xf0\x44\x89\x84\x24\xc8\x00\x00\x00\x48\x89\x54\x24\x58\x48\x8b\xf9\x48\x8b\x84\x24\xd8\x01\x00\x00\x48\x89\x44\x24\x50\x33\xc9\x89\x4c\x24\x48\x48\x89\x4c\x24\x70\x49\x89\x8b\x38\xff\xff\xff\x0f\x57\xc0\x0f\x11\x84\x24\x80\x00\x00\x00\x0f\x11\x84\x24\x90\x00\x00\x00\x0f\x11\x84\x24\xa0\x00\x00\x00\x33\xc0\x0f\x11\x84\x24\xb0\x00\x00\x00\x49\x89\x83\x18\xff\xff\xff\x0f\x57\xc9\x41\x0f\x11\x4b\x88\x41\x0f\x11\x4b\x98\x41\x0f\x11\x4b\xa8\x89\x4c\x24\x40\x48\x89\x8c\x24\xd8\x00\x00\x00\x48\x89"],
+            "injection_offset": 64
+        }
+    ]
 }
 
 
@@ -36,8 +45,7 @@ def list_domains(config):
     return domains
 
 
-def perform_injection(target_virtual_addr, target_expected_bytes, injection_offset, domain,
-                      first_stage_sh, second_stage_sh, config):
+def perform_injection(injection_points, ssdt, domain, first_stage_sh, second_stage_sh, config):
     so_file = "/usr/src/app/devmem2/shmem2.so"
     dev_shm_ram = os.path.join("/dev/shm", domain, config["ram_filename"])
     ram_size = os.path.getsize(dev_shm_ram)
@@ -46,9 +54,26 @@ def perform_injection(target_virtual_addr, target_expected_bytes, injection_offs
     print('[+] Resetting physical memory pool at address 0')
     write_shmem(shmem, dev_shm_ram, 0, 2, b'\x53\xFF')
     print('[+] Searching injection physycal address')
-    page_offset = target_virtual_addr & 0x0fff
-    phys_addr = search_physical(target_virtual_addr, page_offset, target_expected_bytes,
-                                shmem, dev_shm_ram, debug=False, ram_size=ram_size)
+    phys_addr, injection_offset = None, 0
+    for injection_point in injection_points:
+        syscall_name = injection_point['syscall_name']
+        print(f'[+] Trying to inject syscall {syscall_name}')
+        target_virtual_addr, _ = get_syscall_virtual_addr(domain, config, syscall_name, ssdt)
+        target_virtual_addr = int(target_virtual_addr, 16)
+        injection_offset = injection_point['injection_offset']
+        page_offset = target_virtual_addr & 0x0fff
+        n_tries = 1
+        for target_expected_bytes in injection_point['expected_bytes']:
+            print(f'[+] Try n. {n_tries}')
+            phys_addr = search_physical(target_virtual_addr, page_offset, target_expected_bytes,
+                                        shmem, dev_shm_ram, debug=False, ram_size=ram_size)
+            if phys_addr is not None:
+                break
+        if phys_addr is not None:
+            break
+    if phys_addr is None:
+        print('[+] Could not find any injection point physical address')
+        return
     overwritten_func = phys_addr + injection_offset
     print('[+] Injecting first stage shellcode')
     orig_data = write_shmem(shmem, dev_shm_ram, overwritten_func, len(first_stage_sh), first_stage_sh)
@@ -87,20 +112,21 @@ def get_ntoskrnl_base_addr(domain, config):
     return base_addr
 
 
-def get_syscall_virtual_addr(domain, config):
-    if config['win_major_version'] not in injection_majors:
-        raise NotImplementedError
-    syscall_name = injection_majors[config['win_major_version']]['syscall_name']
-    ssdt = volatility_wrapper(domain, config, 'windows.ssdt')
+def get_syscall_virtual_addr(domain, config, syscall_name=None, ssdt=None):
+    if ssdt is None:
+        ssdt = volatility_wrapper(domain, config, 'windows.ssdt')
     syscall = None
-    for i in range(len(ssdt)):
-        if syscall_name in ssdt[i]:
-            syscall = ssdt[i]
-            break
-    if syscall is None:
-        raise InvalidSyscall
-    virtual_addr = syscall.split('\t')[1]
-    return virtual_addr
+    if syscall_name is not None:
+        for i in range(len(ssdt)):
+            if syscall_name in ssdt[i]:
+                syscall = ssdt[i]
+                break
+        if syscall is None:
+            raise InvalidSyscall
+        virtual_addr = syscall.split('\t')[1]
+        return virtual_addr, ssdt
+    else:
+        return None, ssdt
 
 
 def inject_domain(domain, config, offsets):
@@ -116,10 +142,10 @@ def inject_domain(domain, config, offsets):
     print('[+] Run-time patching kernel shellcodes')
     first_stage_sh = patch_first_stage(first_stage_offsets, config, first_stage_sh, ntoskrnl_base_addr_hex)
     second_stage_sh = patch_second_stage(second_stage_offsets, config, second_stage_sh, ntoskrnl_base_addr_hex)
+    version = '.'.join([config['win_major_version'], config['win_minor_version']])
+    if version not in injection_points_by_ver:
+        raise NotImplementedError
+    injection_points = injection_points_by_ver[version]
     print('[+] Getting Windows SSDT')
-    syscall_virtual_addr = get_syscall_virtual_addr(domain, config)
-    syscall_virtual_addr = int(syscall_virtual_addr, 16)
-    target_expected_bytes = injection_majors[config['win_major_version']]['expected_bytes']
-    injection_offset = injection_majors[config['win_major_version']]['injection_offset']
-    perform_injection(syscall_virtual_addr, target_expected_bytes, injection_offset, domain,
-                      first_stage_sh, second_stage_sh, config)
+    _, ssdt = get_syscall_virtual_addr(domain, config)
+    perform_injection(injection_points, ssdt, domain, first_stage_sh, second_stage_sh, config)

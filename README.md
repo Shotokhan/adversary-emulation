@@ -3,7 +3,7 @@
 Project in progress :p
 
 ```
-Windows VM version: 10 Home, build 19041, KVA Shadowing enabled, kernel debug with KDNET, libvirt XML modified to have file-backed RAM on a link to /dev/shm (file-mapped on RAM) and to have e1000 NIC (for compatibility with KDNET)
+Windows VM version: 10 Home, build 19044, KVA Shadowing enabled, kernel debug with KDNET, libvirt XML modified to have file-backed RAM on a link to /dev/shm (file-mapped on RAM) and to have e1000 NIC (for compatibility with KDNET)
 
 Rust version: rustc 1.63.0-nightly (12cd71f4d 2022-06-01)
 

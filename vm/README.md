@@ -1,6 +1,6 @@
 Example configuration for libvirt. <br> <br>
 
-I used a Win 10 VM, build 19041. <br>
+I used a Win 10 VM, build 19044. <br>
 This configuration was obtained using gnome-boxes, then it was changed by hand using libvirt's interface for sanity checking. <br>
 To emulate arbitrary read&write from a compromised hypervisor, you need to have a file-backed RAM, which can be obtained with this configuration:
 
