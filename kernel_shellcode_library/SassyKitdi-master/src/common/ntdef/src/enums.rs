@@ -8,6 +8,9 @@ pub const THREAD_ALL_ACCESS: u32 = 0x001FFFFF;
 pub const MmNonCached: u32 = crate::enums::FALSE;
 pub const MmCached: u32 = crate::enums::TRUE;
 
+pub const FILE_DIRECTORY_FILE: u32 = 0x1;
+pub const FILE_SYNCHRONOUS_IO_NONALERT: u32 = 0x00000020;
+
 pub const FILE_NAMES_INFORMATION: u32 = 0xc;
 
 pub const FILE_LIST_DIRECTORY: u32 = 0x1;
@@ -15,6 +18,9 @@ pub const FILE_OPEN: u32 = 0x1;
 
 pub const FILE_READ_EA: u32 = 0x8;
 pub const FILE_WRITE_EA: u32 = 0x10;
+
+pub const FILE_TRAVERSE: u32 = 0x20;
+pub const FILE_READ_ATTRIBUTES: u32 = 0x80;
 
 pub const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
 

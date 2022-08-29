@@ -81,7 +81,7 @@ pub type ZwQueryDirectoryFile = extern "stdcall" fn(
     ReturnSingleEntry:      crate::types::BOOLEAN,
     FileName:               crate::structs::PUNICODE_STRING,
     RestartScan:            crate::types::BOOLEAN
-) -> ();
+) -> crate::types::NTSTATUS;
 
 pub type KeRaiseIrqlToDpcLevel = extern "stdcall" fn() -> crate::types::KIRQL;
 
