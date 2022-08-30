@@ -7,11 +7,153 @@ pub struct FsFuncs {
     pub zw_query_directory_file: ntdef::functions::ZwQueryDirectoryFile,
     pub zw_close: ntdef::functions::ZwClose,
     pub ex_allocate_pool: ntdef::functions::ExAllocatePool,
-    pub ex_free_pool_with_tag: ntdef::functions::ExFreePoolWithTag
+    pub ex_free_pool_with_tag: ntdef::functions::ExFreePoolWithTag,
+    pub zw_write_file: ntdef::functions::ZwWriteFile,
+    pub zw_read_file: ntdef::functions::ZwReadFile,
 }
 
-pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: ntdef::types::PHANDLE)
+pub unsafe fn open_file(funcs: *const FsFuncs, filename: *mut u8, handle: ntdef::types::PHANDLE, 
+    buf_size: u32, write: u32)
 -> u32 {
+    /*
+     // this len must result at most 1460 / 2 = 730
+    let mut len: isize = ntdef::macros::Strlen(filename) as _;
+    if len > 730 {
+        len = 730 as _;
+    }
+    let mut i: isize = len - 1;
+    while i >= 0 {
+        *((filename as *mut u16).offset(i)) = *(filename.offset(i)) as u16;
+        i = i - 1;
+    }
+    let unicode_str: ntdef::structs::PUNICODE_STRING = ((*funcs).ex_allocate_pool)(
+        ntdef::enums::POOL_TYPE::NonPagedPool, 16
+    ) as _;
+    (*unicode_str).Length = (len*2) as u16;
+    (*unicode_str).MaximumLength = 1460 as u16;
+    (*unicode_str).Buffer = filename as *mut u16;
+    */
+    let unicode_str: ntdef::structs::PUNICODE_STRING = ntdef::macros::BuildUnicodeStringFromCharArray(
+        (*funcs).ex_allocate_pool as _, filename, buf_size
+    );
+
+    let obj_attrs: ntdef::structs::POBJECT_ATTRIBUTES = ((*funcs).ex_allocate_pool)(
+        ntdef::enums::POOL_TYPE::NonPagedPool, 64
+    ) as _;
+    ntdef::macros::InitializeObjectAttributes(
+        // &mut obj_attrs as _,
+        obj_attrs as _,
+        // &mut unicode_str as _,
+        unicode_str as _,
+        ntdef::enums::OBJ_CASE_INSENSITIVE | ntdef::enums::OBJ_KERNEL_HANDLE,
+        core::ptr::null_mut(),
+        core::ptr::null_mut()
+    );
+
+    let io_status_block: ntdef::structs::PIO_STATUS_BLOCK = ((*funcs).ex_allocate_pool)(
+        ntdef::enums::POOL_TYPE::NonPagedPool, 16
+    ) as _;
+
+    let access_mask: u32;
+    let create_disposition: u32;
+    if write == 1 as _ {
+        access_mask = ntdef::enums::GENERIC_WRITE;
+        create_disposition = ntdef::enums::FILE_OVERWRITE_IF;
+    } else {
+        access_mask = ntdef::enums::GENERIC_READ;
+        create_disposition = ntdef::enums::FILE_OPEN;
+    }
+
+    let status = ((*funcs).zw_create_file)(
+        handle as _,
+        access_mask,
+        obj_attrs as _,
+        io_status_block as _,
+        core::ptr::null_mut(),
+        ntdef::enums::FILE_ATTRIBUTE_NORMAL,
+        ntdef::enums::FILE_SHARE_READ,
+        create_disposition,
+        ntdef::enums::FILE_SYNCHRONOUS_IO_NONALERT,
+        core::ptr::null_mut(),
+        0
+    );
+
+    ((*funcs).ex_free_pool_with_tag)(unicode_str as _, 9);
+    ((*funcs).ex_free_pool_with_tag)(obj_attrs as _, 9);
+    ((*funcs).ex_free_pool_with_tag)(io_status_block as _, 9);
+
+    if !ntdef::macros::NT_SUCCESS(status) {
+        return 1;
+    }
+
+    return 0;
+
+ }
+
+pub unsafe fn write_file(funcs: *const FsFuncs, handle: ntdef::types::HANDLE, buf: *mut u8, len: u32) 
+-> u32 {
+    let io_status_block: ntdef::structs::PIO_STATUS_BLOCK = ((*funcs).ex_allocate_pool)(
+        ntdef::enums::POOL_TYPE::NonPagedPool, 16
+    ) as _;
+
+    let status = ((*funcs).zw_write_file)(
+        handle as _,
+        core::ptr::null_mut(),
+        core::ptr::null_mut(),
+        core::ptr::null_mut(),
+        io_status_block as _,
+        buf as _,
+        len as _,
+        core::ptr::null_mut(),
+        core::ptr::null_mut()
+    );
+
+    ((*funcs).ex_free_pool_with_tag)(io_status_block as _, 10);
+
+    if !ntdef::macros::NT_SUCCESS(status) {
+        return 1;
+    }
+
+    return 0;    
+}
+
+
+pub unsafe fn read_file(funcs: *const FsFuncs, handle: ntdef::types::HANDLE, buf: *mut u8, len: u32) 
+-> (u32, u32) {
+    let io_status_block: ntdef::structs::PIO_STATUS_BLOCK = ((*funcs).ex_allocate_pool)(
+        ntdef::enums::POOL_TYPE::NonPagedPool, 16
+    ) as _;
+
+    let status = ((*funcs).zw_read_file)(
+        handle as _,
+        core::ptr::null_mut(),
+        core::ptr::null_mut(),
+        core::ptr::null_mut(),
+        io_status_block as _,
+        buf as _,
+        len as _,
+        core::ptr::null_mut(),
+        core::ptr::null_mut()
+    );
+
+    let mut ret_val: u32 = 0;
+    let n_bytes_read: u32 = (*io_status_block).Information as _;
+
+    if !ntdef::macros::NT_SUCCESS(status) {
+        ret_val = 1 as _;
+    } else if len == n_bytes_read {
+        ret_val = 2 as _;   // read was successful, end of file has not been reached
+    }
+
+    ((*funcs).ex_free_pool_with_tag)(io_status_block as _, 11);
+
+    return (ret_val, n_bytes_read);    
+}
+
+
+pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: ntdef::types::PHANDLE, buf_size: u32)
+-> u32 {
+    /*
     // this len must result at most 1460 / 2 = 730
     let mut len: isize = ntdef::macros::Strlen(dirname) as _;
     if len > 730 {
@@ -28,13 +170,10 @@ pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: nt
     (*unicode_str).Length = (len*2) as u16;
     (*unicode_str).MaximumLength = 1460 as u16;
     (*unicode_str).Buffer = dirname as *mut u16;
-    /*
-    let mut unicode_str = ntdef::structs::UNICODE_STRING {
-        Length: (len*2) as u16,
-        MaximumLength: 1460 as u16,
-        Buffer: dirname as *mut u16
-    };
     */
+    let unicode_str: ntdef::structs::PUNICODE_STRING = ntdef::macros::BuildUnicodeStringFromCharArray(
+        (*funcs).ex_allocate_pool, dirname, buf_size
+    );
 
     // let mut obj_attrs: ntdef::structs::OBJECT_ATTRIBUTES = core::mem::MaybeUninit::uninit().assume_init();
     let obj_attrs: ntdef::structs::POBJECT_ATTRIBUTES = ((*funcs).ex_allocate_pool)(
@@ -55,7 +194,7 @@ pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: nt
         ntdef::enums::POOL_TYPE::NonPagedPool, 16
     ) as _;
 
-    let mut status = ((*funcs).zw_create_file)(
+    let status = ((*funcs).zw_create_file)(
         handle as _,
         ntdef::enums::FILE_LIST_DIRECTORY | ntdef::enums::FILE_READ_EA | ntdef::enums::FILE_TRAVERSE | ntdef::enums::FILE_READ_ATTRIBUTES | ntdef::enums::SYNCHRONIZE,
         // &mut obj_attrs as _,

@@ -1,3 +1,29 @@
+pub type ZwReadFile = extern "stdcall" fn(
+    FileHandle:             crate::types::HANDLE,
+    Event:                  crate::types::HANDLE,
+    ApcRoutine:             crate::types::PVOID,
+    ApcContext:             crate::types::PVOID,
+    IoStatusBlock:          crate::structs::PIO_STATUS_BLOCK,
+    Buffer:                 crate::types::PVOID,
+    Length:                 crate::types::ULONG,
+    ByteOffset:             crate::structs::PLARGE_INTEGER,
+    Key:                    crate::types::PULONG,
+) -> crate::types::NTSTATUS;
+
+
+pub type ZwWriteFile = extern "stdcall" fn(
+    FileHandle:             crate::types::HANDLE,
+    Event:                  crate::types::HANDLE,
+    ApcRoutine:             crate::types::PVOID,
+    ApcContext:             crate::types::PVOID,
+    IoStatusBlock:          crate::structs::PIO_STATUS_BLOCK,
+    Buffer:                 crate::types::PVOID,
+    Length:                 crate::types::ULONG,
+    ByteOffset:             crate::structs::PLARGE_INTEGER,
+    Key:                    crate::types::PULONG,
+) -> crate::types::NTSTATUS;
+
+
 pub type PsTerminateSystemThread = extern "stdcall" fn(
     ExitStatus:             crate::types::NTSTATUS,
 ) -> ();

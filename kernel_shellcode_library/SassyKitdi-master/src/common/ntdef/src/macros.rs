@@ -141,6 +141,30 @@ pub unsafe fn InitializeObjectAttributes(
 }
 
 #[inline]
+pub unsafe fn BuildUnicodeStringFromCharArray(
+    ex_allocate_pool: crate::functions::ExAllocatePool,
+    char_array:       *mut u8,
+    array_size:       u32
+) -> crate::structs::PUNICODE_STRING {
+    let mut len: isize = crate::macros::Strlen(char_array) as _;
+    if (len<<1) > array_size as _ {
+        len = (array_size>>1) as _;
+    }
+    let mut i: isize = len - 1;
+    while i >= 0 {
+        *((char_array as *mut u16).offset(i)) = *(char_array.offset(i)) as u16;
+        i = i - 1;
+    }
+    let unicode_str: crate::structs::PUNICODE_STRING = (ex_allocate_pool)(
+        crate::enums::POOL_TYPE::NonPagedPool, 16
+    ) as _;
+    (*unicode_str).Length = (len<<1) as u16;
+    (*unicode_str).MaximumLength = array_size as u16;
+    (*unicode_str).Buffer = char_array as *mut u16;
+    return unicode_str;
+}
+
+#[inline]
 pub unsafe fn TdiBuildInternalDeviceControlIrp(
     io_build_device_io_control_request: crate::functions::IoBuildDeviceIoControlRequest,
     _IrpSubFunction:    crate::types::CCHAR,
