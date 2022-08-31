@@ -3,6 +3,16 @@ pub const FALSE: u32 = 0;
 
 pub const NULL: crate::types::PVOID = core::ptr::null_mut();
 
+pub const KEY_QUERY_VALUE: u32 =            0x0001;
+pub const KEY_SET_VALUE: u32 =              0x0002;
+pub const KEY_CREATE_SUB_KEY: u32 =         0x0004;
+pub const KEY_ENUMERATE_SUB_KEYS: u32 =     0x0008;
+pub const KEY_NOTIFY: u32 =                 0x0010;
+pub const KEY_CREATE_LINK: u32 =            0x0020;
+pub const KEY_WOW64_32KEY: u32 =            0x0200;
+pub const KEY_WOW64_64KEY: u32 =            0x0100;
+pub const KEY_WOW64_RES: u32 =              0x0300;
+
 pub const THREAD_ALL_ACCESS: u32 = 0x001FFFFF;
 
 pub const MmNonCached: u32 = crate::enums::FALSE;
@@ -34,6 +44,14 @@ pub const GENERIC_ALL: u32 = 0x10000000;
 
 pub const SYNCHRONIZE: u32 = 0x00100000;
 
+pub const STANDARD_RIGHTS_READ: u32 = 0x00020000;
+pub const STANDARD_RIGHTS_WRITE: u32 = 0x00020000;
+pub const STANDARD_RIGHTS_ALL: u32 = 0x001F0000;
+
+pub const KEY_READ: u32 = STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY;
+pub const KEY_WRITE: u32 = STANDARD_RIGHTS_WRITE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY;
+pub const KEY_ALL_ACCESS: u32 = STANDARD_RIGHTS_ALL | KEY_QUERY_VALUE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY | KEY_CREATE_LINK;
+
 pub const FILE_SHARE_READ: u32 = 0x1;
 
 pub const OBJ_CASE_INSENSITIVE: u32 = 0x00000040;
@@ -42,6 +60,16 @@ pub const OBJ_KERNEL_HANDLE: u32 = 0x00000200;
 pub const SL_INVOKE_ON_SUCCESS: u8 = 0x40;
 pub const SL_INVOKE_ON_ERROR: u8 = 0x80;
 pub const SL_INVOKE_ON_CANCEL: u8 = 0x20;
+
+#[repr(i32)]
+pub enum _KEY_VALUE_INFORMATION_CLASS {
+    KeyValueBasicInformation            = 0,
+    KeyValueFullInformation             = 1,
+    KeyValuePartialInformation          = 2,
+    KeyValueFullInformationAlign64      = 3,
+    KeyValuePartialInformationAlign64   = 4,
+    MaxKeyValueInfoClass                = 5,
+}
 
 // CPU modes
 #[repr(i32)]

@@ -1,3 +1,20 @@
+pub type ZwQueryValueKey = extern "stdcall" fn(
+    KeyHandle:                  crate::types::HANDLE,
+    ValueName:                  crate::structs::PUNICODE_STRING,
+    KeyValueInformationClass:   crate::types::KEY_VALUE_INFORMATION_CLASS,
+    KeyValueInformation:        crate::types::PVOID,
+    Length:                     crate::types::ULONG,
+    ResultLength:               crate::types::PULONG,
+) -> crate::types::NTSTATUS;
+
+
+pub type ZwOpenKey = extern "stdcall" fn(
+    KeyHandle:              crate::types::PHANDLE,
+    DesiredAccess:          crate::types::ACCESS_MASK,
+    ObjectAttributes:       crate::structs::POBJECT_ATTRIBUTES,
+) -> crate::types::NTSTATUS;
+
+
 pub type ZwReadFile = extern "stdcall" fn(
     FileHandle:             crate::types::HANDLE,
     Event:                  crate::types::HANDLE,

