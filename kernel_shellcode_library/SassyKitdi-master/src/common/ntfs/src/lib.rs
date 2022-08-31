@@ -15,24 +15,6 @@ pub struct FsFuncs {
 pub unsafe fn open_file(funcs: *const FsFuncs, filename: *mut u8, handle: ntdef::types::PHANDLE, 
     buf_size: u32, write: u32)
 -> u32 {
-    /*
-     // this len must result at most 1460 / 2 = 730
-    let mut len: isize = ntdef::macros::Strlen(filename) as _;
-    if len > 730 {
-        len = 730 as _;
-    }
-    let mut i: isize = len - 1;
-    while i >= 0 {
-        *((filename as *mut u16).offset(i)) = *(filename.offset(i)) as u16;
-        i = i - 1;
-    }
-    let unicode_str: ntdef::structs::PUNICODE_STRING = ((*funcs).ex_allocate_pool)(
-        ntdef::enums::POOL_TYPE::NonPagedPool, 16
-    ) as _;
-    (*unicode_str).Length = (len*2) as u16;
-    (*unicode_str).MaximumLength = 1460 as u16;
-    (*unicode_str).Buffer = filename as *mut u16;
-    */
     let unicode_str: ntdef::structs::PUNICODE_STRING = ntdef::macros::BuildUnicodeStringFromCharArray(
         (*funcs).ex_allocate_pool as _, filename, buf_size
     );
@@ -41,9 +23,7 @@ pub unsafe fn open_file(funcs: *const FsFuncs, filename: *mut u8, handle: ntdef:
         ntdef::enums::POOL_TYPE::NonPagedPool, 64
     ) as _;
     ntdef::macros::InitializeObjectAttributes(
-        // &mut obj_attrs as _,
         obj_attrs as _,
-        // &mut unicode_str as _,
         unicode_str as _,
         ntdef::enums::OBJ_CASE_INSENSITIVE | ntdef::enums::OBJ_KERNEL_HANDLE,
         core::ptr::null_mut(),
@@ -153,43 +133,21 @@ pub unsafe fn read_file(funcs: *const FsFuncs, handle: ntdef::types::HANDLE, buf
 
 pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: ntdef::types::PHANDLE, buf_size: u32)
 -> u32 {
-    /*
-    // this len must result at most 1460 / 2 = 730
-    let mut len: isize = ntdef::macros::Strlen(dirname) as _;
-    if len > 730 {
-        len = 730 as _;
-    }
-    let mut i: isize = len - 1;
-    while i >= 0 {
-        *((dirname as *mut u16).offset(i)) = *(dirname.offset(i)) as u16;
-        i = i - 1;
-    }
-    let unicode_str: ntdef::structs::PUNICODE_STRING = ((*funcs).ex_allocate_pool)(
-        ntdef::enums::POOL_TYPE::NonPagedPool, 16
-    ) as _;
-    (*unicode_str).Length = (len*2) as u16;
-    (*unicode_str).MaximumLength = 1460 as u16;
-    (*unicode_str).Buffer = dirname as *mut u16;
-    */
     let unicode_str: ntdef::structs::PUNICODE_STRING = ntdef::macros::BuildUnicodeStringFromCharArray(
         (*funcs).ex_allocate_pool, dirname, buf_size
     );
 
-    // let mut obj_attrs: ntdef::structs::OBJECT_ATTRIBUTES = core::mem::MaybeUninit::uninit().assume_init();
     let obj_attrs: ntdef::structs::POBJECT_ATTRIBUTES = ((*funcs).ex_allocate_pool)(
         ntdef::enums::POOL_TYPE::NonPagedPool, 64
     ) as _;
     ntdef::macros::InitializeObjectAttributes(
-        // &mut obj_attrs as _,
         obj_attrs as _,
-        // &mut unicode_str as _,
         unicode_str as _,
         ntdef::enums::OBJ_CASE_INSENSITIVE | ntdef::enums::OBJ_KERNEL_HANDLE,
         core::ptr::null_mut(),
         core::ptr::null_mut()
     );
     
-    // let mut io_status_block: ntdef::structs::IO_STATUS_BLOCK = core::mem::MaybeUninit::uninit().assume_init();
     let io_status_block: ntdef::structs::PIO_STATUS_BLOCK = ((*funcs).ex_allocate_pool)(
         ntdef::enums::POOL_TYPE::NonPagedPool, 16
     ) as _;
@@ -197,9 +155,7 @@ pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: nt
     let status = ((*funcs).zw_create_file)(
         handle as _,
         ntdef::enums::FILE_LIST_DIRECTORY | ntdef::enums::FILE_READ_EA | ntdef::enums::FILE_TRAVERSE | ntdef::enums::FILE_READ_ATTRIBUTES | ntdef::enums::SYNCHRONIZE,
-        // &mut obj_attrs as _,
         obj_attrs as _,
-        // &mut io_status_block as _,
         io_status_block as _,
         core::ptr::null_mut(),
         ntdef::enums::FILE_ATTRIBUTE_NORMAL,
@@ -221,10 +177,8 @@ pub unsafe fn open_directory(funcs: *const FsFuncs, dirname: *mut u8, handle: nt
     return 0;
 }
 
-pub unsafe fn query_directory(funcs: *const FsFuncs, handle: ntdef::types::HANDLE, buf: *mut u8) 
+pub unsafe fn query_directory(funcs: *const FsFuncs, handle: ntdef::types::HANDLE, buf: *mut u8, len: u32) 
 -> ntdef::types::NTSTATUS {
-    // assuming supplied buf has a length of 1460
-    // let mut io_status_block: ntdef::structs::IO_STATUS_BLOCK = core::mem::MaybeUninit::uninit().assume_init();
     let io_status_block: ntdef::structs::PIO_STATUS_BLOCK = ((*funcs).ex_allocate_pool)(
         ntdef::enums::POOL_TYPE::NonPagedPool, 16
     ) as _;
@@ -235,10 +189,9 @@ pub unsafe fn query_directory(funcs: *const FsFuncs, handle: ntdef::types::HANDL
         core::ptr::null_mut(),
         core::ptr::null_mut(),
         core::ptr::null_mut(),
-        // &mut io_status_block as _,
         io_status_block as _,
         buf as _,
-        1460, // can hold up to 1460 / 6 filenames => 243 files if all have name length <= 8
+        len as _,
         file_information_class,
         ntdef::enums::FALSE as _,
         core::ptr::null_mut(),

