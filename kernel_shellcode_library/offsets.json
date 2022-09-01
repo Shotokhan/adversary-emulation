@@ -9,7 +9,7 @@
   },
   "second_stage_default": {
     "ntoskrnl_base_addr": 21,
-    "c2_ip": 1943,
-    "c2_port": 1934
+    "c2_ip": 1985,
+    "c2_port": 1976
   }
 }
