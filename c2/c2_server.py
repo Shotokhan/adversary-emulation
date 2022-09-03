@@ -50,6 +50,7 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
                                                     'is_alive': True, 'client_addr': self.client_address}
         connectionStorage.sync()
         log_file = conn_folder + hello_log
+        # TODO: what to expect here as "hello", in general?
         hello = self.request.recv(6).strip()
         log_handler = open(log_file, 'wb')
         log_handler.write(hello)
@@ -65,7 +66,6 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
             if b'close' in command:
                 close = True
             else:
-                # TODO: per-command logic
                 n_received, receiving = 0, True
                 original_timeout = self.request.gettimeout()
                 while receiving:

