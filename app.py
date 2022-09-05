@@ -1,6 +1,5 @@
 from flask import Flask, redirect, render_template, request
 from werkzeug.security import safe_join
-import urllib
 import datetime
 import os
 from config.conf_manager import read_config
