@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="simple-container">
+    {% for file in files %}
+        {% set file_urlsafe = file | urlencode %}
+        <a href="{{ '/' + '/'.join([subdir, file_urlsafe]) }}"><p>{{ file }}</p></a>
+    {% endfor %}
+</div>
+
+{% endblock %}

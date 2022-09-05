@@ -8,11 +8,14 @@ class C2Operation:
         self.name = name
         self.description = description
         self.num_completed = 0
+        self.reported_actions = []
 
     def performOperation(self, connUuid: str):
         for action in self.actions:
             try:
-                action.performAction(connUuid)
+                cmd_indexes_list = action.performAction(connUuid)
+                cmd_indexes_list = ", ".join([str(i) for i in cmd_indexes_list])
+                self.reported_actions.append((action.name, cmd_indexes_list))
                 self.num_completed += 1
             except ActionRequirementsNotSatisfied:
                 break
@@ -21,6 +24,8 @@ class C2Operation:
 
     def reportOperationState(self):
         report = f"{self.name} operation: completed {self.num_completed}/{len(self.actions)} actions"
+        for reported_action in self.reported_actions:
+            report += f"\n'{reported_action[0]}' command indexes: {reported_action[1]}"
         return report
 
     def describeOperation(self):

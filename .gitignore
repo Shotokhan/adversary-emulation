@@ -1,3 +1,4 @@
 .idea/
 config/__pycache__/
 c2/connections/
+*/__pycache__

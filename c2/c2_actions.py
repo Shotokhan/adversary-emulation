@@ -39,7 +39,10 @@ class C2Action:
         fmt = CmdFormatter()
         cmd_uuid_list = []
         for cmd in self.commandsList:
-            cmd = fmt.format(cmd, **factsSubset)
+            try:
+                cmd = fmt.format(cmd, **factsSubset)
+            except TypeError:
+                pass
             cmd_uuid = send_c2_command(self.factsStorage.connUuid, cmd)
             cmd_uuid_list.append(cmd_uuid)
         cmd_indexes_list = []

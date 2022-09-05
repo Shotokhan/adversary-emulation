@@ -26,4 +26,6 @@ COPY c2 c2
 
 COPY *.py ./
 
+COPY templates templates
+
 CMD ["python", "app.py"]

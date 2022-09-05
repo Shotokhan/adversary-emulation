@@ -1,3 +1,4 @@
+import os
 from c2.c2_server import read_c2_log
 
 
@@ -42,6 +43,18 @@ def generic_dir_parser(conn_uuid, cmd_indexes_list):
         # a default target file, can be overwritten
         return [('staged_files', target),
                 ('target_file', target[0])]
+
+
+def generic_file_parser(conn_uuid, cmd_indexes_list):
+    index = cmd_indexes_list[0]
+    data = read_c2_log(conn_uuid, index, decode=False).split(b'\n')
+    cmd, file_data = data[0], b"\n".join(data[1:])
+    cmd = cmd.decode()
+    full_path = cmd.split(" ")[1]
+    exfil_filename = full_path.replace("\\", "_")
+    with open(os.path.join('/usr/src/app/c2/connections', conn_uuid, exfil_filename), 'wb') as f:
+        f.write(file_data)
+    return []
 
 
 def version_parser(conn_uuid, cmd_indexes_list):
