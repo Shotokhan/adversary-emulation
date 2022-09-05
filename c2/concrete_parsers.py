@@ -1,8 +1,6 @@
 from c2.c2_server import read_c2_log
 
 
-# TODO: improve local_users_parser and generic_dir_parser, they don't make the check well
-
 def null_parser(conn_uuid, cmd_indexes_list):
     return []
 
@@ -11,10 +9,11 @@ def local_users_parser(conn_uuid, cmd_indexes_list):
     index = cmd_indexes_list[0]
     data = read_c2_log(conn_uuid, index).split('\n')[1:]
     not_local_users = ['directory opened, sending files', '.', '..', 'All Users', 'Default',
-                       'Default User', 'desktop.ini', 'Public', 'directory listing finished', '']
+                       'Default User', 'desktop.ini', 'Public', 'directory listing finished', '',
+                       'error with specified directory', 'error while querying opened dir']
     local_users = []
     for line in data:
-        line = line.strip()
+        line = line.replace('\x00', '')
         if line not in not_local_users:
             local_users.append(line)
     if len(local_users) == 0:
@@ -31,10 +30,10 @@ def generic_dir_parser(conn_uuid, cmd_indexes_list):
     base_dir = data[0].split(" ")[1].strip()
     data = data[1:]
     not_target = ['directory opened, sending files', '.', '..', 'directory listing finished', '',
-                  'desktop.ini']
+                  'desktop.ini', 'error with specified directory', 'error while querying opened dir']
     target = []
     for line in data:
-        line = line.strip()
+        line = line.replace('\x00', '')
         if line not in not_target:
             target.append(base_dir + line)
     if len(target) == 0:

