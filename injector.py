@@ -162,7 +162,7 @@ def c2getfact(_config, _offsets, _args):
 def c2setfact(_config, _offsets, _args):
     conn_uuid = _args[0]
     fact_name = _args[1]
-    fact_value = _args[2]
+    fact_value = " ".join(_args[2:])
     try:
         factsStorage = c2facts.FactsStorage(c2facts.ConnectionStorage(), conn_uuid)
         try:
