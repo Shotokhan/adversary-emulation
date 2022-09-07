@@ -28,4 +28,6 @@ COPY *.py ./
 
 COPY templates templates
 
+COPY volatility_symbols/windows volatility3/volatility3/symbols/windows
+
 CMD ["python", "app.py"]

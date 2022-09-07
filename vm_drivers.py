@@ -14,6 +14,10 @@ class InvalidDomain(Exception):
     pass
 
 
+class VolatilityError(Exception):
+    pass
+
+
 injection_points_by_ver = {
     "19044.1706": [
         {
@@ -99,10 +103,14 @@ def perform_injection(injection_points, ssdt, domain, first_stage_sh, second_sta
 
 def volatility_wrapper(domain, config, plugin_name):
     dev_shm_ram = os.path.join("/dev/shm", domain, config["ram_filename"])
-    output = subprocess.check_output(['volatility', '-f', dev_shm_ram, plugin_name],
-                                     stderr=subprocess.STDOUT)
-    output = output.decode().split('\n\n')[2].split('\n')[:-1]
-    return output
+    try:
+        output = subprocess.check_output(['volatility', '-f', dev_shm_ram, plugin_name],
+                                         stderr=subprocess.STDOUT)
+        output = output.decode().split('\n\n')[2].split('\n')[:-1]
+        return output
+    except subprocess.CalledProcessError as e:
+        print(f"Error in volatility: {e.stderr}, {e.stdout}")
+        raise VolatilityError
 
 
 def get_ntoskrnl_base_addr(domain, config):

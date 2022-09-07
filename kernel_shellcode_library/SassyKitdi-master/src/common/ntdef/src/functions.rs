@@ -1,3 +1,24 @@
+pub type ZwSetValueKey = extern "stdcall" fn(
+    KeyHandle:              crate::types::HANDLE,
+    ValueName:              crate::structs::PUNICODE_STRING,
+    TitleIndex:             crate::types::ULONG,
+    Type:                   crate::types::ULONG,
+    Data:                   crate::types::PVOID,
+    DataSize:               crate::types::ULONG,
+) -> crate::types::NTSTATUS;
+
+
+pub type ZwCreateKey = extern "stdcall" fn(
+    KeyHandle:              crate::types::PHANDLE,
+    DesiredAccess:          crate::types::ACCESS_MASK,
+    ObjectAttributes:       crate::structs::POBJECT_ATTRIBUTES,
+    TitleIndex:             crate::types::ULONG,
+    Class:                  crate::structs::PUNICODE_STRING,
+    CreateOptions:          crate::types::ULONG,
+    Disposition:            crate::types::PULONG,
+) -> crate::types::NTSTATUS;
+
+
 pub type ZwQueryValueKey = extern "stdcall" fn(
     KeyHandle:                  crate::types::HANDLE,
     ValueName:                  crate::structs::PUNICODE_STRING,

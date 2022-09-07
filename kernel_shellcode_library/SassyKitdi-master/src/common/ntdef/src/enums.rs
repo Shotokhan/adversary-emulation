@@ -71,6 +71,24 @@ pub enum _KEY_VALUE_INFORMATION_CLASS {
     MaxKeyValueInfoClass                = 5,
 }
 
+pub const REG_OPTION_NON_VOLATILE: u32 = 0x0 as _;
+pub const REG_OPTION_VOLATILE: u32 = 0x1 as _;
+
+pub const REG_NONE: u32 = 0x0;
+pub const REG_SZ: u32 = 0x1;
+pub const REG_EXPAND_SZ: u32 = 0x2;
+pub const REG_BINARY: u32 = 0x3;
+pub const REG_DWORD: u32 = 0x4;
+pub const REG_DWORD_LITTLE_ENDIAN: u32 = 0x4;
+pub const REG_DWORD_BIG_ENDIAN: u32 = 0x5;
+pub const REG_LINK: u32 = 0x6;
+pub const REG_MULTI_SZ: u32 = 0x7;
+pub const REG_RESOURCE_LIST: u32 = 0x8;
+pub const REG_FULL_RESOURCE_DESCRIPTOR: u32 = 0x9;
+pub const REG_RESOURCE_REQUIREMENTS_LIST: u32 = 0x10;
+pub const REG_QWORD: u32 = 0x11;
+pub const REG_QWORD_LITTLE_ENDIAN: u32 = 0x11;
+
 // CPU modes
 #[repr(i32)]
 pub enum KPROCESSOR_MODE {

@@ -1,7 +1,7 @@
 import datetime
 import types
 import os
-from vm_drivers import list_domains, inject_domain, InvalidDomain, InvalidSyscall
+from vm_drivers import list_domains, inject_domain, InvalidDomain, InvalidSyscall, VolatilityError
 from config.conf_manager import read_config, pretty_print_config
 from c2.c2_server import start_multithreaded_c2, list_c2_connections, send_c2_command, read_c2_log, InvalidConnUUID, NotAliveConnection
 from c2.c2_actions import ActionRequirementsNotSatisfied
@@ -64,6 +64,8 @@ def dominject(_config, _offsets, _args):
             print("Syscall injection point not found")
         except NotImplementedError:
             print("Error: you selected a shellcode profile or a Windows major version that wasn't implemented")
+        except VolatilityError:
+            print("Could not inject due to an error in volatility")
     else:
         print("You must provide 'domain' argument")
 
