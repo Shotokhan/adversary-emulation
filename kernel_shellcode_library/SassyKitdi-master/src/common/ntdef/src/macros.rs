@@ -84,6 +84,18 @@ pub unsafe fn Strlen(src: *const u8) -> isize {
     return i;
 }
 
+pub unsafe fn IntFromStr(src: *const u8) -> u64 {
+    let mut result: u64 = 0;
+    let len: isize = crate::macros::Strlen(src);
+    let mut current_val: u8;
+    for i in 0..len {
+        current_val = *(src.offset(i)) - 0x30;
+        result = result * 10;
+        result = result + current_val as u64;
+    }
+    return result;
+}
+
 #[cfg(target_arch ="x86_64")]
 pub unsafe fn IoGetNextIrpStackLocation(
     irp:       crate::structs::PIRP

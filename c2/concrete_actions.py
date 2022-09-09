@@ -55,7 +55,7 @@ def write_file(filename=None):
         with open(os.path.join('/usr/src/app/c2/connections/upload_dir', filename), 'rb') as f:
             data = f.read()
         chunk_size = 1460
-        data = [data[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
+        data = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
         for chunk in data:
             commands_list.append(chunk)
     parser = c2parsers.null_parser
@@ -64,5 +64,23 @@ def write_file(filename=None):
     description = "This action reads a file, specified as argument, from the upload_dir, " \
                   "and writes it to remote file system in the path specified by target_file; " \
                   "if the local file is not specified, the action will write 'stub'"
+    action = C2Action(commands_list, parser, required_facts, name, description)
+    return action
+
+
+def set_registry_key(key=None, subkey_name=None, subkey_type=None, subkey_value=None):
+    args = [key, subkey_name, subkey_type, subkey_value]
+    commands_list = [f"setkey {key}" if key is not None else "setkey {reg_key}",
+                     subkey_name or "{reg_subkey_name}",
+                     subkey_type or "{reg_subkey_type}",
+                     subkey_value or "{reg_subkey_value}"]
+    parser = c2parsers.null_parser
+    complete_required_facts = ['reg_key', 'reg_subkey_name', 'reg_subkey_type', 'reg_subkey_value']
+    required_facts = [complete_required_facts[i] for i in range(len(args)) if args[i] is None]
+    name = "Set subkey name, type and value in a registry key"
+    description = "Open/create a key in the Windows registry, and for that key sets a " \
+                  "subkey with specified name, type and value; you can either start this action" \
+                  " using facts or passing positional parameters: " \
+                  "key_name subkey_name subkey_type subkey_value"
     action = C2Action(commands_list, parser, required_facts, name, description)
     return action

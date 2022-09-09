@@ -8,8 +8,8 @@
     }
   },
   "second_stage_default": {
-    "ntoskrnl_base_addr": 43,
-    "c2_ip": 2106,
-    "c2_port": 2097
+    "ntoskrnl_base_addr": 21,
+    "c2_ip": 2077,
+    "c2_port": 2068
   }
 }
