@@ -59,6 +59,17 @@ def get_system_version():
     return action
 
 
+def dump_lsass_process():
+    commands_list = ["dump lsass.exe"]
+    parser = c2parsers.process_dump_parser_to_minidump
+    required_facts = ['major_version', 'minor_version', 'build_number']
+    name = "Dump lsass credentials"
+    description = "Read a full memory dump of lsass.exe and make a minidump from it " \
+                  "to extract credentials"
+    action = C2Action(commands_list, parser, required_facts, name, description)
+    return action
+
+
 def write_file(filename=None, target_file=None):
     commands_list = [f"write {target_file}" if target_file is not None else "write {target_file}"]
     if filename is None:

