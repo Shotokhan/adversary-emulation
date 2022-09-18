@@ -31,7 +31,20 @@ def read_file():
     required_facts = ['target_file']
     name = "Exfiltrate file"
     description = "Read a file from the victim's file system"
-    action = C2Action(commands_list, parser, required_facts, name, description)
+    output_facts = ['exfiltrated_files']
+    action = C2Action(commands_list, parser, required_facts, name, description, output_facts)
+    return action
+
+
+def read_staged_files():
+    commands_list = ["read {staged_files}"]
+    parser = c2parsers.generic_file_parser
+    required_facts = ['staged_files']
+    name = "Exfiltrate a list of staged files"
+    description = "Read a list of files from the victim's file system; it is an iterative action"
+    output_facts = ['exfiltrated_files']
+    action = C2Action(commands_list, parser, required_facts, name, description, output_facts)
+    action.iterativeAction()
     return action
 
 

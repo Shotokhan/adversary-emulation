@@ -46,15 +46,17 @@ def generic_dir_parser(conn_uuid, cmd_indexes_list):
 
 
 def generic_file_parser(conn_uuid, cmd_indexes_list):
-    index = cmd_indexes_list[0]
-    data = read_c2_log(conn_uuid, index, decode=False).split(b'\n')
-    cmd, file_data = data[0], b"\n".join(data[1:])
-    cmd = cmd.decode()
-    full_path = cmd.split(" ")[1]
-    exfil_filename = full_path.replace("\\", "_")
-    with open(os.path.join('/usr/src/app/c2/connections', conn_uuid, exfil_filename), 'wb') as f:
-        f.write(file_data)
-    return []
+    exfiltrated_files = []
+    for index in cmd_indexes_list:
+        data = read_c2_log(conn_uuid, index, decode=False).split(b'\n')
+        cmd, file_data = data[0], b"\n".join(data[1:])
+        cmd = cmd.decode()
+        full_path = cmd.split(" ")[1]
+        exfil_filename = full_path.replace("\\", "_")
+        exfiltrated_files.append(exfil_filename)
+        with open(os.path.join('/usr/src/app/c2/connections', conn_uuid, exfil_filename), 'wb') as f:
+            f.write(file_data)
+    return [('exfiltrated_files', exfiltrated_files)]
 
 
 def version_parser(conn_uuid, cmd_indexes_list):

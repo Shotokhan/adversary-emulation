@@ -26,6 +26,7 @@ class C2Action:
         self.name = name
         self.description = description
         self.outputFacts = outputFacts or []
+        self.iterative = False
 
     def performAction(self, connUuid: str):
         connectionStorage = ConnectionStorage()
@@ -36,6 +37,23 @@ class C2Action:
                 factsSubset[fact_name] = self.factsStorage.getFact(fact_name)
             except NotExistentFact:
                 raise ActionRequirementsNotSatisfied
+        if self.iterative:
+            for fact_name in factsSubset:
+                if not isinstance(factsSubset[fact_name], list):
+                    continue
+                else:
+                    fmt = CmdFormatter()
+                    newCommandList = []
+                    curlyFactName = '{' + fact_name + '}'
+                    for cmd in self.commandsList:
+                        if curlyFactName not in cmd:
+                            newCommandList.append(cmd)
+                        else:
+                            for fact_item in factsSubset[fact_name]:
+                                fmtSubset = {fact_name: fact_item}
+                                new_cmd = fmt.format(cmd, **fmtSubset)
+                                newCommandList.append(new_cmd)
+                    self.commandsList = newCommandList
         fmt = CmdFormatter()
         cmd_uuid_list = []
         for cmd in self.commandsList:
@@ -70,6 +88,9 @@ class C2Action:
         for cmd in commands_to_show:
             message += cmd + '\n'
         return message
+
+    def iterativeAction(self):
+        self.iterative = True
 
 
 class CmdFormatter(Formatter):
