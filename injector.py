@@ -10,7 +10,8 @@ import c2.concrete_actions as c2actions
 import c2.c2_facts as c2facts
 
 
-changeable = ['win_major_version', 'win_minor_version', 'first_stage_profile', 'second_stage_profile']
+changeable = ['win_major_version', 'win_minor_version', 'first_stage_profile', 'second_stage_profile',
+              'first_stage_injection_latency', 'second_stage_injection_latency', 'restore_syscall']
 
 
 def c2read(_config, _offsets, _args):

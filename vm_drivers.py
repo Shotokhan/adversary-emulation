@@ -88,7 +88,7 @@ def perform_injection(injection_points, ssdt, domain, first_stage_sh, second_sta
     overwritten_func = phys_addr + injection_offset
     print('[+] Injecting first stage shellcode')
     orig_data = write_shmem(shmem, dev_shm_ram, overwritten_func, len(first_stage_sh), first_stage_sh)
-    time.sleep(10)
+    time.sleep(config['first_stage_injection_latency'])
     print('[+] Searching egg')
     egg = bytes.fromhex(config["first_stage_egg"])
     n_tries, second_stage_loc = 0, None
@@ -100,11 +100,12 @@ def perform_injection(injection_points, ssdt, domain, first_stage_sh, second_sta
     if second_stage_loc is not None:
         print('[+] Injecting second stage shellcode')
         write_shmem(shmem, dev_shm_ram, second_stage_loc, len(second_stage_sh), second_stage_sh)
-        time.sleep(10)
     else:
         print('[+] Egg not found, can\'t inject second stage shellcode')
-    print('[+] Restoring first-stage area')
-    write_shmem(shmem, dev_shm_ram, overwritten_func, len(orig_data.raw), orig_data.raw)
+    if config['restore_syscall'] != 0:
+        time.sleep(config['second_stage_injection_latency'])
+        print('[+] Restoring first-stage area')
+        write_shmem(shmem, dev_shm_ram, overwritten_func, len(orig_data.raw), orig_data.raw)
     print('[+] Done')
 
 
