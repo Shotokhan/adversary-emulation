@@ -25,6 +25,3 @@ debuginfo = 0
 
 [dependencies]
 ntdef       =   { path = "../../common/ntdef",      version = "0.1.0" }
-ntstr       =   { path = "../../common/ntstr",   version = "0.1.0" }
-ntproc       =   { path = "../../common/ntproc",   version = "0.1.0" }
-resolver    =   { path = "../../common/resolver",   version = "0.1.0" }
