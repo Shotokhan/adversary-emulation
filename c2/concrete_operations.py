@@ -27,3 +27,17 @@ def persistence_and_credential_access():
                   "script at boot, get system version and dump memory of LSASS process"
     operation = C2Operation(actions, name, description)
     return operation
+
+
+def ransomware():
+    actions = [
+        c2actions.find_local_users(),
+        c2actions.find_sensitive_files(),
+        c2actions.read_and_encrypt_staged_files(),
+        c2actions.send_encrypted_files(),
+        c2actions.write_ransom_message()
+    ]
+    name = "Ransomware (discovery, collection, exfiltration, impact)"
+    description = "Discover and exfiltrate sensitive files, encrypt them and leave a message"
+    operation = C2Operation(actions, name, description)
+    return operation

