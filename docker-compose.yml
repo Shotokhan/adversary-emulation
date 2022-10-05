@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: ./Dockerfile
       network: host
-    container_name: k-caldera
+    container_name: Laccolith
     ports:
       - 8000:8000
       - 7331:7331

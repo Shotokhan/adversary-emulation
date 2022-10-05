@@ -131,26 +131,26 @@ The success rate is high, although there are situations in which the injection c
 Since the second stage shellcode is started with ```PsCreateSystemThread```, it has to end with [PsTerminateSystemThread](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-psterminatesystemthread).
 
 Around the compiled payloads, it was built an "infrastructure" using Python, Volatility, the file-mapped RAM and a shared module based on [shmem2](https://github.com/rick-heig/devmem2) to gain fast access to mapped memory. <br>
-This infrastructure was inspired by MITRE's Caldera, and is used for the automation of the injection of kernel agents, with run-time patching of shellcode bytes, configurability, multiple interfaces and an embedded command-and-control (C2) server; for this reason, it was called ```k-caldera```.
+This infrastructure was inspired by MITRE's Caldera, and is used for the automation of the injection of kernel agents, with run-time patching of shellcode bytes, configurability, multiple interfaces and an embedded command-and-control (C2) server; for this reason, it was called ```Laccolith```. In fact, a [Laccolith](https://en.wikipedia.org/wiki/Laccolith) is at a lower level than a Caldera, which is a volcanic lake.
 
 The "prescriptive" architecture was hand-written on a blank paper and guided the developments; here it is:
 
-![k_caldera_prescriptive](docs/diagrams/k_caldera_prescriptive.png)
+![Laccolith_prescriptive](docs/diagrams/Laccolith_prescriptive.png)
 
 The first thing implemented was the automation of the full injection chain, with just a basic netcat-like C2 server for the first tests. <br>
 The full injection chain can be seen with this sequence diagram:
 
 ![injection-chain](docs/diagrams/injection-chain.jpg) 
 
-Where the actual, "descriptive" package diagram of ```k-caldera``` is the following one:
+Where the actual, "descriptive" package diagram of ```Laccolith``` is the following one:
 
-![k-caldera-descriptive](docs/diagrams/k-caldera-descriptive.jpg)
+![Laccolith-descriptive](docs/diagrams/Laccolith-descriptive.jpg)
 
 The generic sequence followed by the second-stage shellcode connecting to the C2 server, with an user, connected to the system, which wants to issue commands to a bot:
 
 ![second_stage_generic_sequence](docs/diagrams/second_stage_generic_sequence.jpg)
 
-```k-caldera``` has 3 interfaces:
+```Laccolith``` has 3 interfaces:
 
 - a web interface, listening on port 8000;
 - a text user interface over network, listening on port 7331, this is the richer one and can be used to control the agents;
@@ -159,25 +159,25 @@ The generic sequence followed by the second-stage shellcode connecting to the C2
 Both web and TUI interfaces are user-friendly and in particular the TUI interface give much information about each command's behaviour. <br>
 The functions implemented in the interfaces are summarized in the following use-case diagram:
 
-![k-caldera-interface-use-cases](docs/diagrams/k-caldera%20interface%20use%20cases.jpg)
+![Laccolith-interface-use-cases](docs/diagrams/Laccolith%20interface%20use%20cases.jpg)
 
 To replicate the experiment, it's useful to provide a deployment diagram, also to adapt the tool to different virtualization technologies:
 
-![k-caldera-deployment](docs/diagrams/k-caldera-deployment.jpg)
+![Laccolith-deployment](docs/diagrams/Laccolith-deployment.jpg)
 
 Since the target is also to implement some adversary profiles and test the detectability of the agent against some AV/EDR solutions there was also the implementation of Actions, Operations, Parsers and Facts, like shown in the "descriptive" package diagram. <br>
 An Action is similar to a Caldera "Ability", whereas an Operation is the equivalent of a Caldera "Adversary profile" (here is the [terminology](https://caldera.readthedocs.io/en/latest/Learning-the-terminology.html)). <br>
 A Parser is associated to an Action, takes as input the commands' raw outputs and produces Facts out of them, which are high-level information available to the user interface and required as input for some other Actions. <br>
 The lifecycle of an Action can be seen in the following diagram:
 
-![k-caldera_action_lifecycle](docs/diagrams/k-caldera_action_lifecycle.jpg)
+![Laccolith_action_lifecycle](docs/diagrams/Laccolith_action_lifecycle.jpg)
 
 The next step is to plan three different attack campaigns and test the detectability against some AV/EDR solutions.
 
 ## Experiments
 
 It was chosen to implement an easy profile, which only implements a basic "Discovery-Collection-Exfiltration" chain, and an harder profile which is more invasive and performs Persistence and Credential access. <br>
-It was also implemented a profile for a ransomware, which doesn't contribute to the "commands coverage" but is another example of advanced profile, that can be implemented using ```k-caldera```. <br>
+It was also implemented a profile for a ransomware, which doesn't contribute to the "commands coverage" but is another example of advanced profile, that can be implemented using ```Laccolith```. <br>
 Details of what the profiles do and how they do it are available in the following table: 
 
 |Profile   |Description                                                                                                                                                      |Tactics                                    |Commands used                                                                                     |High-level actions                                                                                                                                        |Referenced APTs (example)       |

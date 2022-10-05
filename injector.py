@@ -282,7 +282,7 @@ def command_line_interface(_config, _offsets, stream_req_handler=None):
              'help': 'Usage: help\nShow available options',
              'info': 'Usage: info <option>\nShow option usage and brief description'}
     while True:
-        print("k-caldera> ", end="")
+        print("Laccolith> ", end="")
         choice = input().strip()
         if choice == 'help':
             print(f"Available commands: {', '.join(options)}")
