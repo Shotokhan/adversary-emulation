@@ -1,6 +1,6 @@
 version: '3'
 services:
-  k-caldera:
+  laccolith:
     build:
       context: .
       dockerfile: ./Dockerfile
