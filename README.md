@@ -1,5 +1,13 @@
 # adversary-emulation
 
+## TLDR
+This framework allows for the injection of a high-privileged agent in the kernel of a guest OS from the hypervisor's privileges. It currently supports some versions of Windows 10 as guest OS, and the portability w.r.t. the hypervisor is left to the user, that has to configure the hypervisor such to have the RAM of the guest OS backed on a file of the host OS, in this way the host OS can read/write the physical memory of the guest in real-time. The framework is executed as a Docker container, that has ```/dev/shm``` as mount point, and expects to find the file-backed RAM (called ```pc.ram```, can be changed by modifying ```config/config.json```) in sub-folders of ```/dev/shm``` (in this way, the RAM is file-backed, but the file is internally backed on the RAM of the host OS, to reclaim performance). This assumes that the host OS is Linux and that it's able to run both Docker containers and VMs. The setup was done, in particular, for ```libvirt+qemu+kvm``` (with ```gnome-boxes``` as front-end), see ```vm``` folder.
+
+### Usage
+After having done the proper setup for the VM and changed the configuration accordingly, you just have to use the ```docker-compose.yml``` file to build the framework and run it. Connect to port 8000 for the web interface and to port 7331 for the text user interface, which allows for commands and is self-documented (with "help" and "info" meta-commands).
+
+More details are provided in the next sections, and the most detailed and up-to-date information, since this project is for a Master Thesis in Computer Engineering, are available in ```docs/thesis``` and ```docs/presentation```, which are in English :) .
+
 ## Introduction
 From [here](https://plextrac.com/what-is-adversary-emulation-adversary-simulation/): "adversary emulation is a type of red (or purple) team engagement that uses real-world threat intelligence to impersonate the actions and behaviors that your red team (or bad actors) would use in practice".
 
