@@ -28,3 +28,48 @@ Another thing to do, if you want to do kernel debug with KDNET, is to change the
 I just added the ```<model type='e1000'/>``` line. <br>
 This is the configuration for libvirt, which uses QEMU and KVM. There should be similar configurations for other providers, like VMWare and VirtualBox.
 
+## For older versions of libvirt
+
+Some versions of libvirt may not use the ```-object``` syntax for the RAM, instead they will only allocate the RAM amount using ```-m``` flag, that is a deprecated way. <br>
+In this case, you can solve the problem by manually adding the file-backed RAM object, and by setting a NUMA object that will make the actual RAM fall to the other object, linking them using the id:
+
+```
+  <commandline xmlns="http://libvirt.org/schemas/domain/qemu/1.0">
+    <arg value='-object'/>
+    <arg value='memory-backend-file,id=pc.ram,size=2147483648,mem-path=/dev/shm/qemu-ram/win10,share=on'/>
+    <arg value='-numa'/>
+    <arg value='node,memdev=pc.ram'/>
+  </commandline>
+```
+
+You have to add this at the very end of the domain.
+
+## Error troubleshooting
+
+### Permission denied error with AppArmor
+Modify ```/etc/apparmor.d/abstractions/libvirt-qemu```, for example with:
+
+```
+/dev/shm/* rw
+```
+
+or with some stricter rules.
+
+### Kernel debug errors when virtualizing Windows with QEMU-KVM
+Disable Hyper-V enlightments in features and in clocks. <br>
+Install the Windows Debugging tools from the SDK even on the target machine. <br>
+Make sure that the host and the target computer can connect to each other and that there aren't any conflicting firewall rules. <br>
+Make sure that the registry in the proper state:
+
+```
+> bcdedit /bootdebug {bootmgr} on
+> bcdedit /debug on
+> bcdedit /bootdebug on
+> bcdedit /set nointegritychecks on
+> bcdedit /set testsigning on
+```
+
+For more information: [this](https://bugzilla.redhat.com/show_bug.cgi?format=multiple&id=1947015) and [this](http://hvinternals.blogspot.com/2021/01/hyper-v-debugging-for-beginners-2nd.html).
+
+### If you can't get it right with libvirt
+Then use [qemu without libvirt](https://developers.redhat.com/blog/2020/03/06/configure-and-run-a-qemu-based-vm-outside-of-libvirt#create_a_boot_script_from_the_qemu_command).
