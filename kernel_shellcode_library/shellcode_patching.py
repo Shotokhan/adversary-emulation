@@ -16,6 +16,11 @@ funcs_pi_addresses_by_ver = {
         "mm_allocate_contiguous_memory": 0x52c760,
         "mm_map_io_space": 0x3242d0,
         "ps_create_system_thread": 0x653890
+    },
+    "19041.1415": {
+        "mm_allocate_contiguous_memory": 0x52c210,
+        "mm_map_io_space": 0x335ae0,
+        "ps_create_system_thread": 0x6cfb90
     }
 }
 
