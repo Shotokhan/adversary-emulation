@@ -262,6 +262,53 @@ For the second dictionary it is easier: you get ```ntoskrnl``` base address, the
 
 Another possible future development could be to obtain the required information for the two dictionaries by only using Volatility/shmem, without setting up kernel debug.
 
+#### A way to obtain the required information using Volatility/shmem (TLDR)
+```
+$ volatility -f /dev/shm/2-win10/pc.ram windows.modules
+Volatility 3 Framework 1.0.0
+Progress:  100.00		PDB scanning finished                     
+Offset	Base	Size	Name	Path	File output
+
+0xb6020e04e610	0xf8050f608000	0x1046000	ntoskrnl.exe	\SystemRoot\system32\ntoskrnl.exe	Disabled
+...
+```
+
+Recall that ntoskrnl base address in this session is ```0xf8050f608000```. <br>
+Open volshell in windows mode:
+
+```
+$ volshell -f /dev/shm/2-win10/pc.ram -w
+...
+```
+
+Now, all symbols are loaded in volshell, and for each symbol there is the physical offset to ntoskrnl's base address.
+
+For example, to get the offset of ```MmAllocateContiguousMemory```:
+
+```
+(primary) >>> hex(symbols.get_symbol('MmAllocateContiguousMemory').address)
+'0x52c830'
+```
+
+Note: the output is shown for version ```19044.2130```.
+
+For the portability of the injection point:
+
+```
+(primary) >>> syscall = symbols.get_symbol('NtQueryVirtualMemory').address + 0xf8050f608000
+(primary) >>> db(syscall)
+0xf8050fc90ca0    48 83 ec 48 48 8b 44 24 78 c7 44 24 30 02 00 00    H..HH.D$x.D$0...
+0xf8050fc90cb0    00 48 89 44 24 28 48 8b 44 24 70 48 89 44 24 20    .H.D$(H.D$pH.D$.
+0xf8050fc90cc0    e8 1b 00 00 00 48 83 c4 48 c3 cc cc cc cc cc cc    .....H..H.......
+0xf8050fc90cd0    cc cc cc cc cc cc cc cc cc cc cc cc cc cc cc cc    ................
+0xf8050fc90ce0    4c 8b dc 53 56 57 41 54 41 55 41 56 41 57 48 81    L..SVWATAUAVAWH.
+0xf8050fc90cf0    ec 70 01 00 00 48 8b 05 e4 95 58 00 48 33 c4 48    .p...H....X.H3.H
+0xf8050fc90d00    89 84 24 60 01 00 00 4d 8b e1 4c 89 8c 24 f8 00    ..$`...M..L..$..
+0xf8050fc90d10    00 00 45 8b f0 44 89 84 24 c8 00 00 00 48 89 54    ..E..D..$....H.T
+```
+
+I'm sure you are now able to implement the portability using Volatility/shmem on your own ```;)```.
+
 ### Implement payloads and injection chain for other operating systems
 It was very interesting to delve into Windows internals to develop the injection chain and the kernel-level shellcodes.
 
