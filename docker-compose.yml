@@ -1,0 +1,16 @@
+version: '3'
+services:
+  laccolith:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      network: host
+    container_name: Laccolith
+    ports:
+      - 8000:8000
+      - 7331:7331
+      - 5000:5000
+    volumes:
+      - /dev/shm:/dev/shm
+      - ./config:/usr/src/app/config
+      - ./c2/connections:/usr/src/app/c2/connections

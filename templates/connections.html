@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="simple-container">
+    <table>
+        <tr>
+            <th>Connection UUID</th>
+            <th>Client address</th>
+            <th>Last seen</th>
+            <th>Is alive</th>
+            <th>Number of commands</th>
+        </tr>
+        {% for conn in connections %}
+        <tr>
+            <td><a href="/listdir/{{ conn[0] }}"><p>{{ conn[0] }}</p></a></td>
+            <td>{{ conn[1] }}</td>
+            <td>{{ conn[2] }}</td>
+            <td>{{ conn[3] }}</td>
+            <td>{{ conn[4] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+{% endblock %}

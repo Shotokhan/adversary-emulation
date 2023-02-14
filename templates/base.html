@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/frontend/index.css" />
+    {% block styles %}{% endblock %}
+    <title>Laccolith</title>
+  </head>
+  <body>
+    <header>
+      <center>Laccolith</center>
+    </header>
+    <main>
+       {% block body %}{% endblock %}
+    </main>
+    <footer>
+        <div class="simple-container">
+            <a href="/">Home</a>
+        </div>
+    </footer>
+  </body>
+  {% block script %}{% endblock %}
+</html>

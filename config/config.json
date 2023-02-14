@@ -1,0 +1,16 @@
+{
+  "win_major_version": "19044",
+  "win_minor_version": "2486",
+  "c2_ip": "192.168.122.1",
+  "c2_port": 5000,
+  "c2_bot_timeout": 30,
+  "first_stage_profile": "first_stage_default",
+  "first_stage_egg": "30f79746705547e3a625b82dccab2f3e560a710098e44da7981d45f0af83506d",
+  "first_stage_injection_latency": 3,
+  "second_stage_injection_latency": 3,
+  "restore_syscall": 1,
+  "second_stage_profile": "second_stage_with_usermode",
+  "ram_filename": "pc.ram",
+  "flask_port": 8000,
+  "text_ui_port": 7331
+}
