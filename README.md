@@ -18,7 +18,7 @@ The following list may change, and the ticked boxes could still require some min
 ### Usage
 After having done the proper setup for the VM and changed the configuration accordingly, you just have to use the ```docker-compose.yml``` file to build the framework and run it. Connect to port 8000 for the web interface and to port 7331 for the text user interface, which allows for commands and is self-documented (with "help" and "info" meta-commands).
 
-More details are provided in the next sections, and even more details, since this project is for a Master Thesis in Computer Engineering, are available in ```docs/thesis``` and ```docs/presentation```, which are in English :) .
+More details are provided in the next sections, and even more details, since this project is for a Master Thesis in Computer Engineering, are available in ```docs/thesis``` and ```docs/presentation```, which are in English.
 
 ## Introduction
 From [here](https://plextrac.com/what-is-adversary-emulation-adversary-simulation/): "adversary emulation is a type of red (or purple) team engagement that uses real-world threat intelligence to impersonate the actions and behaviors that your red team (or bad actors) would use in practice".
@@ -50,7 +50,7 @@ In particular, it was used ```gnome-boxes``` as frontend. <br>
 The solution was not straightforward to find, but it's easy to replicate. <br>
 The idea is to have a file-backed RAM for the VM, using the ```ramfs``` protocol, then make the folder in which virtual machines' live RAM images are stored a symbolic link to ```/dev/shm``` to reclaim performance. Additional technical details can be found in ```vm``` sub-folder of this repository.
 
-At this point, the requirement is to use the gained access to emulate an adversary which wants to inject an agent in the VM.
+At this point, the requirement is to use the gained access to emulate an adversary that wants to inject an agent in the VM.
 
 The general way of getting arbitrary code execution using arbitrary read/write is corrupting some data structures in memory to redirect execution flow after that the code will, eventually, use these data structures.
 
@@ -58,7 +58,7 @@ Anyway, this approach has the problem of the "semantic gap": when dealing with r
 In addition to that, the code doesn't bypass the MMU, so it always has to reference valid virtual addresses. <br>
 So the injector can overwrite any data structures it wants, but doesn't have an allocated space to place its code into.
 
-It has to change strategy, then. Usually, text areas of processes (where the assembly code is) are not-writeable pages. <br>
+It has to change strategy, then. Usually, text areas of processes (where the assembly code is) are non-writeable pages. <br>
 But, since the memory access is done from the hypervisor, any byte of memory is readable and writeable. <br>
 So it's possible to directly overwrite some code which will be eventually called and use it to inject an agent.
 
@@ -76,7 +76,7 @@ From the documentation, we can see that most of the functions require to be call
 
 At this point, the next step is to choose a system call to overwrite, with "enough space" to contain the malicious code; the malicious code also needs to handle the case of being called multiple times, and needs to somehow exit gracefully without hanging forever.
 
-It's already clear that, for space requirements and for behaviour requirements, the "malicious code" which overwrites the system call can't be the "agent" itself, but will be responsible for the allocation of the code region for the agent and the asynchronous execution of the agent in that area. <br>
+It's already clear that, for space requirements and for behavior requirements, the "malicious code" which overwrites the system call can't be the "agent" itself, but will be responsible for the allocation of the code region for the agent and the asynchronous execution of the agent in that area. <br>
 For this reason, the injection is a multi-stage process, and the "malicious code" will be referred to as "first stage shellcode" for now on and the "agent" will be referred to as "second stage shellcode".
 
 The first stage shellcode will overwrite a system call for a short period of time, long enough to "communicate" to the hypervisor that the area for the second stage shellcode is ready; the hypervisor will write the second stage shellcode to that area, then the first stage shellcode will start a "system thread" to execute the second stage shellcode and will return. <br>
@@ -134,18 +134,18 @@ So, it allocates 16 KB of contiguous memory, and writes a "very random cookie" t
 This "cookie" is called "egg" because the injector has to search it and overwrite it with the second stage shellcode, which is bigger, so "the egg hatches". <br>
 The first stage shellcode periodically reads the memory in which the egg is located to see if it has changed; if it has changed, then the second stage shellcode has been written there, so it allocates memory for a thread handle and uses [PsCreateSystemThread](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-pscreatesystemthread) specifying the address of the area in which the second stage shellcode is located as ```StartRoutine```.
 
-The only other thing the first stage shellcode has to implement is the synchronization pattern to handle concurrent calls: it must ensure that its "main" is executed one and only one time. <br>
+The only other thing the first-stage shellcode has to implement is the synchronization pattern to handle concurrent calls: it must ensure that its "main" is executed one and only one time. <br>
 To do that, it implements a fast function to "try to acquire" a spinlock, using [xchg](https://www.felixcloutier.com/x86/xchg#description) instruction in inline assembly. <br>
 But, where is the spinlock located? <br>
-Usually, when multiple threads need synchronization, the thread which starts them allocates for them the necessary synchronization objects: in fact, if each thread allocated them on its own, they would be different objects. <br>
-To solve this problem, since there aren't pre-allocated synchronization objects, it is necessary to use an allocation primitive which is able to return pointers to the same memory area. <br>
+Usually, when multiple threads need synchronization, the thread that starts them allocates for them the necessary synchronization objects: in fact, if each thread allocated them on its own, they would be different objects. <br>
+To solve this problem, since there aren't pre-allocated synchronization objects, it is necessary to use an allocation primitive that is able to return pointers to the same memory area. <br>
 So, physical addresses must be specified as input parameters of this allocation primitive. <br>
 In Windows the function with these requirements is [MmMapIoSpace](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-mmmapiospace). <br>
 Which physical address to use? <br>
-A good candidate is physical address 0x0, because it is used for early boot operations and left "uninitialized" after that; [in fact](https://unix.stackexchange.com/a/461774), the platform firmware usually allows operating systems to use the first KB of physical memory as "physical memory pool" available to the OS for internal operations. <br>
+A good candidate is the physical address 0x0, because it is used for early boot operations and left "uninitialized" after that; [in fact](https://unix.stackexchange.com/a/461774), the platform firmware usually allows operating systems to use the first KB of physical memory as "physical memory pool" available to the OS for internal operations. <br>
 So the solution is to map the spinlock to physical address 0x0, and the ```xchg``` operation is done by using a "cookie" (0xDEAD) that is unlikely to be the value at physical address 0x0 when the first stage shellcode is called for the first time.
 
-The first test of the injection chain was done by using the sequence ```int3; ret``` as second stage shellcode, and the chain worked. <br>
+The first test of the injection chain was done by using the sequence ```int3; ret``` as second-stage shellcode, and the chain worked. <br>
 The success rate is high, although there are situations in which the injection chain can make the system crash, documented in issue #1.
 
 Since the second stage shellcode is started with ```PsCreateSystemThread```, it has to end with [PsTerminateSystemThread](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-psterminatesystemthread).
@@ -211,20 +211,6 @@ Then, the initial idea was to test these profiles with many antivirus active at 
 So, after having installed a new, fresh virtual machine (to have a new environment for experiments, different from the "test and debug" one), it was taken a snapshot and tests were performed by switching back to this snapshot each time before installing a new antivirus. <br>
 The basic test is with just the Windows Defender active, other tests have Windows Defender plus a single antivirus active. <br>
 They were used free versions of some available antivirus (links are not shown because they may change): Avast, AVG, Kaspersky (Security Cloud), Avira. <br>
-The following table reports the progress of profiles' actions in each situation, taking into account also the injection phase.
-
-| Profile       | Windows Defender | Avast | AVG   | Kaspersky | Avira |
-|---------------|------------------|-------|-------|-----------|-------|
-| Thief         | 3 / 3            | 3 / 3 | 3 / 3 | 0 / 3     | 3 / 3 |
-| Op-2          | 4 / 4            | 4 / 4 | 4 / 4 | 0 / 4     | 4 / 4 |
-| Ransomware    | 5 / 5            | 5 / 5 | 5 / 5 | 0 / 5     | 5 / 5 |
-
-About Kaspersky, it doesn't detect the attack; it uses the system in a more aggressive way, somehow lowering the success rate of the injection. <br>
-In fact, it makes the system reboots and asks to send a crash dump to Kaspersky servers, but it doesn't show any log of the attack; also because the connection rarely reaches the C2 server, so the actual Operation never starts. <br>
-Therefore, in any case the injection and the execution of the Actions is fully undetected, just in the case of Kaspersky the injection fails a little time after the start of the second stage shellcode. <br>
-Another thing to mention is that, after the dump of the lsass process, the detach from the process makes the system crash, probably it is an [invalid detach](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/bug-check-0x6--invalid-process-detach-attempt).
-
-Other experiments are detailed in the thesis.
 
 ## (Re-)Build kernel payloads
 
@@ -242,85 +228,6 @@ In any case, if you follow the "last" step, you have to (re-)build the docker im
 
 ## Future developments
 
-### Handle issues
-Issues are documented on the repository, a starting point is to look at the current issues and try to address them. <br>
-The hardest one is #1, related to the possible failures of the injection method.
-
-It is documented that the injection can go wrong in two ways; "way 1" is very hard to address but has a lower probability, whereas "way 2" is still quite hard and has an higher probability, as shown in the experiment with Kaspersky. <br>
-"Way 2" could be addressed by designing the first-stage shellcode such that it doesn't return back without doing the system call's duty, but somehow "hooking" the system call with the help of the hypervisor, using a technique similar to the one used to inject the second-stage shellcode, but synchronous.
-
-### Implement portability for new Windows versions
-The portability needs to be implemented for each Windows update, because the injection chain leverages Windows "deep internals".
-
-The schema used is "build_number.minor_update", like "19044.2006". <br>
-Implemented versions are in two dictionaries:
-
-- injections points: ```injection_points_by_ver``` in ```vm_drivers.py```;
-- PI addresses: ```funcs_pi_addresses_by_ver``` in ```kernel_shellcode_library/shellcode_patching.py```.
-
-In the first dictionary, for each version there is a list of injection points, each one with:
-
-- ```syscall_name```, like shown in Volatility's ```windows.ssdt``` plugin, which returns the virtual address of that system call, used to get the page offset (virtual page offset = physical page offset);
-- ```expected_bytes``` is a list of possible byte arrays to look for, it is used to "translate" the virtual address to a physical address by performing a search on every physical memory page at the previously obtained page offset: it contains the code of the system call, and must be enough long to be unique, but enough short to have a low probability of crossing the page's boundary;
-- ```injection_offset``` is the offset at which the injection of the first stage shellcode is performed with respect to the target system call: for example, in the case of NtQueryVirtualMemory system call, actually the overwritten function is MmQueryVirtualMemory, at offset 64, because the system call "stub" was too short.
-
-In the second dictionary, for each version there is a list of offsets, which are position-independent addresses of functions in ```ntoskrnl``` virtual address memory range (the names of the functions must match with the names specified as sub-keys of ```hardcoded_function_offsets``` sub-key in ```kernel_shellcode_library/offsets.json```). <br>
-This dictionary is used for shellcode run-time patching before injection, so there is the concept of "offset within the shellcode" and the concept of "function offset to ntoskrnl base address" (a bit like "return to libc" methodology).
-
-The two dictionaries are easily filled for new versions if you setup kernel debug. <br>
-In fact, you start by reloading symbols, with ```.reload``` command. <br>
-Then, for the first dictionary you make the debugger show the address of the system call, in this case with ```x ntoskrnl!NtQueryVirtualMemory```, then you disassemble that address and verify that the offset to MmQueryVirtualMemory is still 64, and at last you use ```db``` command to display bytes at the system call's virtual address and copy them to build the expected bytes; 240 bytes are a good trade-off, because they're less than 1/8 of 4 KB, so the probability of crossing a page boundary when searching for the injection point, assuming an uniform distribution of the injection point's page offset, is less than 12.5%. <br>
-For the second dictionary it is easier: you get ```ntoskrnl``` base address, then you use the display symbol command (like ```x ntoskrnl!MmAllocateContiguousMemory```) to obtain the virtual address of the function, and get the offset by subtracting the first address to the second address.
-
-Another possible future development could be to obtain the required information for the two dictionaries by only using Volatility/shmem, without setting up kernel debug.
-
-#### A way to obtain the required information using Volatility/shmem (TLDR)
-```
-$ volatility -f /dev/shm/2-win10/pc.ram windows.modules
-Volatility 3 Framework 1.0.0
-Progress:  100.00		PDB scanning finished                     
-Offset	Base	Size	Name	Path	File output
-
-0xb6020e04e610	0xf8050f608000	0x1046000	ntoskrnl.exe	\SystemRoot\system32\ntoskrnl.exe	Disabled
-...
-```
-
-Recall that ntoskrnl base address in this session is ```0xf8050f608000```. <br>
-Open volshell in windows mode:
-
-```
-$ volshell -f /dev/shm/2-win10/pc.ram -w
-...
-```
-
-Now, all symbols are loaded in volshell, and for each symbol there is the physical offset to ntoskrnl's base address.
-
-For example, to get the offset of ```MmAllocateContiguousMemory```:
-
-```
-(primary) >>> hex(symbols.get_symbol('MmAllocateContiguousMemory').address)
-'0x52c830'
-```
-
-Note: the output is shown for version ```19044.2130```.
-
-For the portability of the injection point:
-
-```
-(primary) >>> syscall = symbols.get_symbol('NtQueryVirtualMemory').address + 0xf8050f608000
-(primary) >>> db(syscall)
-0xf8050fc90ca0    48 83 ec 48 48 8b 44 24 78 c7 44 24 30 02 00 00    H..HH.D$x.D$0...
-0xf8050fc90cb0    00 48 89 44 24 28 48 8b 44 24 70 48 89 44 24 20    .H.D$(H.D$pH.D$.
-0xf8050fc90cc0    e8 1b 00 00 00 48 83 c4 48 c3 cc cc cc cc cc cc    .....H..H.......
-0xf8050fc90cd0    cc cc cc cc cc cc cc cc cc cc cc cc cc cc cc cc    ................
-0xf8050fc90ce0    4c 8b dc 53 56 57 41 54 41 55 41 56 41 57 48 81    L..SVWATAUAVAWH.
-0xf8050fc90cf0    ec 70 01 00 00 48 8b 05 e4 95 58 00 48 33 c4 48    .p...H....X.H3.H
-0xf8050fc90d00    89 84 24 60 01 00 00 4d 8b e1 4c 89 8c 24 f8 00    ..$`...M..L..$..
-0xf8050fc90d10    00 00 45 8b f0 44 89 84 24 c8 00 00 00 48 89 54    ..E..D..$....H.T
-```
-
-I'm sure you are now able to implement the portability using Volatility/shmem on your own ```;)```.
-
 ### Implement payloads and injection chain for other operating systems
 It was very interesting to delve into Windows internals to develop the injection chain and the kernel-level shellcodes.
 
@@ -330,68 +237,7 @@ Therefore, considering the case of mobile operating systems could still be usefu
 So, a possible family of target operating systems may be Linux distributions [used in cloud](https://bell-sw.com/announcements/2022/06/29/linux-distributions-for-server-and-cloud-overview/), like Ubuntu, Debian, RHEL, Amazon Linux 2. <br>
 It may also be interesting to explore the case of MacOS, although it, like Windows, would require a significant effort of reverse engineering. 
 
-### Implement ring0-to-ring3 technique in a portable and reliable way
-Like previously said, having the possibility of executing code in user-mode is useful both for customize the defense evasion capabilities and to have access to higher-level functions.
-
-Because of processor privileges, kernel mode is also called "ring 0", whereas user-mode is also called "ring 3".
-
-The "ring0-to-ring3" technique must be:
-
-- reliable: it has to be deterministic, the code must eventually execute and the technique itself must evade detection;
-- portable: the resulting shellcode must easily be patched automatically before injection, and the information needed for patching must easily be obtained for different Windows version or otherwise a script to automatically obtain the required information must be implemented.
-
-Several approaches were explored by browsing "unofficial rootkit documentations" and by brainstorming about Windows internal functions. <br>
-It's useful to group them in the following categories.
-
-#### Indirect user-mode
-This is not a real "ring0-to-ring3" technique. <br>
-The idea is to use existing execution techniques in user-space and trigger them by using kernel functions.
-
-For example, a working technique is to replace a legitimate executable (or a DLL) that is executed periodically with a malicious one. <br>
-But this is not reliable: the malicious binary is easily flagged as malicious by Windows Defender, in first instance because it is not signed. <br>
-The reliability of this technique can be enhanced by combining it with other techniques to impair defenses, like setting keys in the system registry to allow UAC bypass, and so on. <br>
-But it would still have a low reliability because there is the open question "when the binary will be executed". 
-
-Another technique, experimented in this research, is about the [scheduled tasks](https://learn.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page). <br>
-To register a scheduled task, there are user-space APIs, which require high privileges. <br>
-But, after a scheduled task is registered, there is a related XML file in ```C:\Windows\System32\Tasks\``` directory tree, but it's only used for integrity checks. <br>
-In fact, the actual task's information are in system registry, like described in [this article](https://cyber.wtf/2022/06/01/windows-registry-analysis-todays-episode-tasks/). <br>
-Anyway, using the kernel agent to modify the registry by adding new tasks or by changing some already registered task seems to not have effects on the actual scheduled tasks: the newly created task can be seen using the scheduled tasks' GUI, but never gets executed. <br>
-This is maybe because the GUI queries the registry, but the task scheduler doesn't, it needs to be modified. <br>
-So, this technique can work at most for persistence, unless a raw way to notify the task scheduler is found.
-
-Much brainstorming can be performed for the "indirect user-mode" strategy; it's hard to find a reliable way with this strategy, but for sure it doesn't need any portability efforts. 
-
-#### Raw context switch
-The idea is to reverse engineer the way in which Windows performs the context switch from kernel-mode to user-mode and use it in a separate thread to execute an user-mode shellcode.
-
-An attempt is left commented in ```kernel_shellcode_library/SassyKitdi-master/src/payloads/second_stage/src/lib.rs```, see the ```user_mode_transition``` function and the ```usermode_cmd``` branch.
-
-Basically, the context switch will always end with the privileged instructions [swapgs](https://www.felixcloutier.com/x86/swapgs) and [sysret](https://www.felixcloutier.com/x86/sysret).
-
-The reverse engineering part is about setting the appropriate values in registers before calling these instructions. <br>
-The only one certain is ```RCX```, whose value will be copied to ```RIP``` after ```sysret```, so it must point to the area in which there is the user-mode shellcode... but, is the area allocated from kernel-mode using [ExAllocatePool](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-exallocatepool) executable in user-mode? 
-
-#### Undocumented exported functions (like a rootkit)
-Some legacy methods, hard to be made portable, and maybe with low reliability because EDRs could have hooked them because of their usage in past rootkits:
-
-- [KeInitializeApc + KeInsertQueueApc](https://wikileaks.org/ciav7p1/cms/page_7995529.html), it should be one of the legit ways that Windows uses to start new threads in active processes;
-- [RtlCreateUserThread](https://www.unknowncheats.me/forum/general-programming-and-reversing/305615-pssetcontextthread-correct-usage.html);
-- [KeUserModeCallback](https://www.stormshield.com/news/how-to-run-userland-code-from-the-kernel-on-windows/), it is a "reverse system call" resulted from the refactoring of Windows code for graphics from kernel mode to user mode.
-
-#### Heresy's gate (undocumented and not-exported functions)
-Another time that ```zerosum0x0``` made an awesome research.
-
-According to [his article](https://zerosum0x0.blogspot.com/2020/06/heresys-gate-kernel-zwntdll-scraping.html), "you can think about Heresy's Gate as the generic methodology to dynamically generate and execute kernel-mode syscall stubs that are not exported by ntoskrnl.exe".
-
-It is called like that because it allows for the usage of kernel functions which are not exported by the kernel itself, i.e. internal kernel functions: if the kernel is the Hell, [Heresy is at a lower realm](https://en.wikipedia.org/wiki/Inferno_(Dante)#Sixth_Circle_(Heresy)).
-
-After getting access to not-exported kernel functions, it takes some reverse engineering to choose the approach to use. <br>
-```zerosum0x0``` chose to use [worker factories](https://learn.microsoft.com/en-us/windows/win32/procthread/thread-pools), which are Windows' thread pools.
-
-This approach needs to be studied, it is not a fast solution but can achieve the maximum reliability, whereas the portability could be hard to implement.
-
-### Test the attack against micro-architectural based protections like Intel TDX
+### Test the attack against micro-architectural-based protections like Intel TDX
 The injection relies on the fact that the hypervisor can violate integrity and confidentiality of the virtual domain.
 
 Technologies like [Intel TDX](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-trust-domain-extensions.html) try to ensure that the hypervisor can only violate availability of a virtual domain (an hypervisor can always deny resources to a virtual machine), but not integrity or confidentiality.
