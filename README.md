@@ -1,4 +1,4 @@
-# adversary-emulation
+# laccolith-adversary-emulation
 
 ## TLDR
 This framework allows for the injection of a high-privileged agent in the kernel of a guest OS from the hypervisor's privileges. It currently supports some versions of Windows 10 as guest OS, and the portability w.r.t. the hypervisor is left to the user, that has to configure the hypervisor such to have the RAM of the guest OS backed on a file of the host OS, in this way the host OS can read/write the physical memory of the guest in real-time. The framework is executed as a Docker container, that has ```/dev/shm``` as mount point, and expects to find the file-backed RAM (called ```pc.ram```, can be changed by modifying ```config/config.json```) in sub-folders of ```/dev/shm``` (in this way, the RAM is file-backed, but the file is internally backed on the RAM of the host OS, to reclaim performance). This assumes that the host OS is Linux and that it's able to run both Docker containers and VMs. The setup was done, in particular, for ```libvirt+qemu+kvm``` (with ```gnome-boxes``` as front-end), see ```vm``` folder.
